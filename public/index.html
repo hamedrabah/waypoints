@@ -128,74 +128,104 @@
         </div>
       </div>
 
-      <!-- Results Section -->
-      <div id="resultSection" style="display: none;">
-        <div class="card">
-          <div class="card-header">Analysis Results</div>
-          <div class="card-body p-0">
-            <div class="analysis-container">
-              <!-- Top Panel: Image and Map -->
-              <div class="dual-panel p-3">
-                <div class="image-panel" id="uploadedImageContainer">
-                  <!-- Uploaded image will be displayed here -->
-                  <div id="street-view-panel" style="height:100%; width:100%;">
-                    <div class="image-title">Street View</div>
-                    <div id="street-view" style="height:100%; width:100%;"></div>
+      <!-- Main Display Area with 911 Calls Rail and Map -->
+      <div class="dashboard-layout">
+        <!-- 911 Calls Left Rail -->
+        <div class="calls-rail">
+          <div class="calls-header">
+            <h4>911 CALLS FOR SERVICE</h4>
+            <div class="calls-filters">
+              <div class="input-group">
+                <input type="text" class="form-control" id="callsSearch" placeholder="Search incidents...">
+                <button class="btn btn-outline-secondary" type="button" id="callsSearchBtn">
+                  <i class="bi bi-search"></i>
+                </button>
+              </div>
+              <select class="form-select mt-2" id="callsLimit">
+                <option value="25">25 calls</option>
+                <option value="50" selected>50 calls</option>
+                <option value="100">100 calls</option>
+              </select>
+            </div>
+          </div>
+          <div id="callsList" class="timeline-wrapper">
+            <!-- 911 calls will be added here -->
+            <div class="text-center p-4 text-muted">
+              <div class="spinner-border spinner-border-sm" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+              <p class="mt-2">Loading 911 calls...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Results Section with Map -->
+        <div id="resultSection" class="map-content">
+          <div class="card">
+            <div class="card-header">Operational View</div>
+            <div class="card-body p-0">
+              <div class="analysis-container">
+                <!-- Top Panel: Map -->
+                <div class="p-3">
+                  <div class="map-panel-full">
+                    <div id="map" style="height: 500px;"></div>
                   </div>
                 </div>
-                <div class="map-panel">
-                  <div id="map" style="height: 400px;"></div>
-                </div>
-              </div>
-              
-              <!-- Bottom Panel: Timeline and Predictions -->
-              <div class="dual-panel p-3">
-                <!-- Left Column: Timeline and Details -->
-                <div class="data-column">
-                  <div class="info-panel">
-                    <div class="info-panel-header">Primary Location Details</div>
-                    <div class="info-panel-content">
-                      <div class="info-panel-row">
-                        <div class="info-panel-label">Address:</div>
-                        <div class="info-panel-value" id="formattedAddress"></div>
+                
+                <!-- Bottom Panel: Timeline and Predictions -->
+                <div class="dual-panel p-3">
+                  <!-- Left Column: Timeline and Details -->
+                  <div class="data-column">
+                    <div class="info-panel">
+                      <div class="info-panel-header">Primary Location Details</div>
+                      <div class="info-panel-content">
+                        <div class="info-panel-row">
+                          <div class="info-panel-label">Address:</div>
+                          <div class="info-panel-value" id="formattedAddress"></div>
+                        </div>
+                        <div class="info-panel-row">
+                          <div class="info-panel-label">Coordinates:</div>
+                          <div class="info-panel-value" id="coordinates"></div>
+                        </div>
+                        <div class="info-panel-row">
+                          <div class="info-panel-label">Status:</div>
+                          <div class="info-panel-value" id="waypointStatus"></div>
+                        </div>
                       </div>
-                      <div class="info-panel-row">
-                        <div class="info-panel-label">Coordinates:</div>
-                        <div class="info-panel-value" id="coordinates"></div>
+                    </div>
+                    
+                    <div class="info-panel">
+                      <div class="info-panel-header">Waypoints List</div>
+                      <div class="timeline-wrapper" id="waypointsList">
+                        <!-- Waypoints will be added here -->
                       </div>
-                      <div class="info-panel-row">
-                        <div class="info-panel-label">Status:</div>
-                        <div class="info-panel-value" id="waypointStatus"></div>
+                      <div class="p-3">
+                        <button id="exportWaypointsBtn" class="btn btn-primary">
+                          <i class="bi bi-download"></i> Export Waypoints
+                        </button>
                       </div>
                     </div>
                   </div>
                   
-                  <div class="info-panel">
-                    <div class="info-panel-header">Waypoints List</div>
-                    <div class="timeline-wrapper" id="waypointsList">
-                      <!-- Waypoints will be added here -->
+                  <!-- Right Column: Predictions or Uploaded Image -->
+                  <div class="data-column">
+                    <div id="uploadedImageContainer" class="image-panel">
+                      <!-- Uploaded image will be displayed here -->
                     </div>
-                    <div class="p-3">
-                      <button id="exportWaypointsBtn" class="btn btn-primary">
-                        <i class="bi bi-download"></i> Export Waypoints
-                      </button>
+                    <div id="predictionsContainer">
+                      <!-- Predictions content will be inserted here -->
                     </div>
                   </div>
                 </div>
                 
-                <!-- Right Column: Predictions -->
-                <div class="data-column" id="predictionsContainer">
-                  <!-- Predictions content will be inserted here -->
+                <!-- Street View Container -->
+                <div id="street-view-container" style="display: none;" class="p-3">
+                  <div class="info-panel-header mb-2">Street View</div>
+                  <div id="street-view"></div>
+                  <button id="closeStreetView" class="btn btn-sm btn-secondary mt-2">
+                    <i class="bi bi-x-lg"></i> Close Street View
+                  </button>
                 </div>
-              </div>
-              
-              <!-- Street View Container -->
-              <div id="street-view-container" style="display: none;" class="p-3">
-                <div class="info-panel-header mb-2">Street View</div>
-                <div id="street-view"></div>
-                <button id="closeStreetView" class="btn btn-sm btn-secondary mt-2">
-                  <i class="bi bi-x-lg"></i> Close Street View
-                </button>
               </div>
             </div>
           </div>
@@ -212,6 +242,11 @@
         </div>
       </div>
 
+      <!-- Old 911 Calls Section (now hidden and replaced with left rail) -->
+      <div id="callsSection" style="display: none;">
+        <!-- This section is now replaced by the left rail -->
+      </div>
+
       <div class="footer">
         <span class="text-muted">Skydio Waypoint Manager &copy; 2024 | Requires Skydio Cloud API credentials</span>
       </div>
@@ -224,10 +259,24 @@
       const script = document.createElement('script');
       script.src = 'app.js';
       script.onload = function() {
-        const mapsScript = document.createElement('script');
-        mapsScript.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyA6yI0qMjtRmULWlorYPh94XEoJKgPBpUI&libraries=places,geometry&callback=initMap';
-        mapsScript.async = true;
-        document.body.appendChild(mapsScript);
+        // Fetch the API key from the backend
+        fetch('/api/maps-api-key')
+          .then(response => response.json())
+          .then(data => {
+            if (data.error) {
+              console.error('Error fetching Maps API key:', data.error);
+              return;
+            }
+            
+            const mapsScript = document.createElement('script');
+            mapsScript.src = `https://maps.googleapis.com/maps/api/js?key=${data.key}&libraries=places,geometry&callback=initMap`;
+            mapsScript.async = true;
+            mapsScript.defer = true;
+            document.body.appendChild(mapsScript);
+          })
+          .catch(error => {
+            console.error('Failed to fetch Maps API key:', error);
+          });
       };
       document.body.appendChild(script);
     });

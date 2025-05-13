@@ -7,6 +7,7 @@ let geocodedLng;
 let selectedImage = null;
 let panorama; // Street View panorama
 let infoWindows = []; // Keep track of info windows
+let callsData = []; // Store 911 calls data
 
 // Add a DOM ready function to ensure elements exist before accessing them
 function initEventListeners() {
@@ -74,6 +75,36 @@ function initEventListeners() {
         window.map.setCenter({ lat: 37.7749, lng: -122.4194 });
         window.map.setZoom(13);
       }
+      
+      // Update active state
+      document.querySelectorAll('.sidebar-nav .nav-link').forEach(link => {
+        link.classList.remove('active');
+      });
+      this.classList.add('active');
+    });
+  }
+  
+  // Setup calls search button
+  const callsSearchBtn = document.getElementById('callsSearchBtn');
+  if (callsSearchBtn) {
+    callsSearchBtn.addEventListener('click', searchCalls);
+  }
+  
+  // Setup calls search input (search on Enter key)
+  const callsSearch = document.getElementById('callsSearch');
+  if (callsSearch) {
+    callsSearch.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        searchCalls();
+      }
+    });
+  }
+  
+  // Setup calls limit dropdown
+  const callsLimit = document.getElementById('callsLimit');
+  if (callsLimit) {
+    callsLimit.addEventListener('change', function() {
+      fetchRecentCalls(this.value);
     });
   }
   
@@ -94,6 +125,9 @@ function initEventListeners() {
   if (imageForm) {
     imageForm.addEventListener('submit', imageFormSubmit);
   }
+  
+  // Load 911 calls automatically when page loads
+  fetchRecentCalls();
 }
 
 // Initialize the map (callback for Google Maps API)
@@ -106,13 +140,8 @@ function initMap() {
   
   // If map element doesn't exist or isn't visible, try to show the result section
   if (!mapElement || mapElement.offsetParent === null) {
-    // Try to show the result section which contains the map
-    const resultSection = document.getElementById('resultSection');
-    if (resultSection) {
-      resultSection.style.display = 'block';
-      // Try to get the map element again after showing the section
-      mapElement = document.getElementById('map');
-    }
+    // Try to get the map element again after showing the section
+    mapElement = document.getElementById('map');
     
     // If map still doesn't exist, log an error and return
     if (!mapElement) {
@@ -245,6 +274,9 @@ function initMap() {
       }
     });
   }
+
+  // Make sure the result section (with map) is visible
+  document.getElementById('resultSection').style.display = 'flex';
 
   // Initialize event listeners
   initEventListeners();
@@ -1327,4 +1359,222 @@ function showError(message) {
 // Hide error message
 function hideError() {
   document.getElementById('errorSection').style.display = 'none';
+}
+
+// Fetch recent 911 calls from the API
+async function fetchRecentCalls(limit = 50) {
+  try {
+    // Clear the calls list and show loading state
+    const callsList = document.getElementById('callsList');
+    callsList.innerHTML = `
+      <div class="text-center p-4 text-muted">
+        <div class="spinner-border spinner-border-sm" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading 911 calls...</p>
+      </div>
+    `;
+    
+    // Fetch data from our API endpoint
+    const response = await fetch(`/api/911-calls?limit=${limit}`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch 911 calls data');
+    }
+    
+    const data = await response.json();
+    callsData = data; // Store for filtering
+    
+    // Display the calls in the UI
+    displayCalls(data);
+    
+    return data;
+  } catch (error) {
+    console.error('Error fetching 911 calls:', error);
+    
+    // Show error in the calls list
+    const callsList = document.getElementById('callsList');
+    callsList.innerHTML = `
+      <div class="text-center p-4">
+        <div class="alert alert-danger">
+          <i class="bi bi-exclamation-triangle"></i>
+          Failed to load 911 calls: ${error.message}
+        </div>
+        <button class="btn btn-primary btn-sm mt-2" onclick="fetchRecentCalls()">
+          <i class="bi bi-arrow-clockwise"></i> Retry
+        </button>
+      </div>
+    `;
+  }
+}
+
+// Display 911 calls in the UI
+function displayCalls(calls) {
+  const callsList = document.getElementById('callsList');
+  
+  if (!calls || calls.length === 0) {
+    callsList.innerHTML = `
+      <div class="text-center p-4 text-muted">
+        <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+        <p class="mt-2">No 911 calls found</p>
+      </div>
+    `;
+    return;
+  }
+  
+  // Clear existing content
+  callsList.innerHTML = '';
+  
+  // Add each call to the list
+  calls.forEach(call => {
+    // Format date - use incident_datetime field
+    const callDate = new Date(call.incident_datetime);
+    const formattedDate = callDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+    
+    const formattedTime = callDate.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    // Determine the appropriate icon based on incident type
+    let iconClass = 'bi-telephone-fill';
+    if (call.incident_category) {
+      const category = call.incident_category.toLowerCase();
+      if (category.includes('assault') || category.includes('weapon')) {
+        iconClass = 'bi-exclamation-triangle-fill';
+      } else if (category.includes('theft') || category.includes('burglary') || category.includes('robbery')) {
+        iconClass = 'bi-house-door-fill';
+      } else if (category.includes('traffic') || category.includes('vehicle') || category.includes('collision')) {
+        iconClass = 'bi-car-front-fill';
+      } else if (category.includes('fire')) {
+        iconClass = 'bi-fire';
+      } else if (category.includes('medical') || category.includes('ambulance')) {
+        iconClass = 'bi-heart-pulse-fill';
+      }
+    }
+    
+    // Determine priority based on incident description or category
+    let priority = '';
+    let priorityClass = '';
+    
+    if (call.incident_category) {
+      const category = call.incident_category.toLowerCase();
+      if (category.includes('assault') || category.includes('weapon') || category.includes('robbery') || 
+          category.includes('shooting') || category.includes('arson')) {
+        priority = 'HIGH';
+        priorityClass = 'priority-high';
+      } else if (category.includes('theft') || category.includes('burglary') || 
+                category.includes('vehicle') || category.includes('fraud')) {
+        priority = 'MEDIUM';
+        priorityClass = 'priority-medium';
+      } else {
+        priority = 'LOW';
+        priorityClass = 'priority-low';
+      }
+    }
+    
+    // Create call item element
+    const callItem = document.createElement('div');
+    callItem.className = 'incident-item';
+    callItem.innerHTML = `
+      <div class="call-icon-container">
+        <i class="bi ${iconClass}"></i>
+      </div>
+      <div class="incident-details">
+        <div class="incident-title">${call.incident_description || call.incident_category || 'Unknown Incident'}</div>
+        <div class="incident-meta">
+          ${formattedTime}
+        </div>
+        <div class="incident-address">${call.intersection || 'No address'}</div>
+      </div>
+      <div>
+        <span class="priority-badge ${priorityClass}">${priority}</span>
+      </div>
+    `;
+    
+    // Add click handler for the whole incident item
+    callItem.addEventListener('click', function() {
+      const lat = parseFloat(call.latitude);
+      const lng = parseFloat(call.longitude);
+      
+      if (lat && lng) {
+        // Show the map section if it's not already visible
+        document.getElementById('resultSection').style.display = 'flex';
+        
+        // Center map on this location
+        map.setCenter({lat, lng});
+        map.setZoom(16);
+        
+        // Add a marker for this call
+        const callMarker = new google.maps.Marker({
+          position: {lat, lng},
+          map: map,
+          title: call.incident_description || 'Incident',
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            fillColor: priority === 'HIGH' ? '#e74c3c' : (priority === 'MEDIUM' ? '#f7b500' : '#36b27c'),
+            fillOpacity: 0.8,
+            strokeWeight: 1,
+            strokeColor: '#FFFFFF',
+            scale: 10
+          }
+        });
+        
+        // Create an info window with call details
+        const infoContent = `
+          <div class="marker-details">
+            <div class="marker-header">${call.incident_category || 'Incident'}</div>
+            <div class="marker-content">
+              <strong>${call.incident_description || ''}</strong><br>
+              <div style="margin: 5px 0">
+                <small>${formattedDate} at ${formattedTime}</small><br>
+                <small>${call.intersection || 'Location unavailable'}</small>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        const infoWindow = new google.maps.InfoWindow({
+          content: infoContent
+        });
+        
+        // Show info window when marker is clicked
+        callMarker.addListener('click', function() {
+          infoWindow.open(map, callMarker);
+        });
+        
+        // Auto-open the info window
+        infoWindow.open(map, callMarker);
+      }
+    });
+    
+    callsList.appendChild(callItem);
+  });
+}
+
+// Search calls based on user input
+function searchCalls() {
+  const searchInput = document.getElementById('callsSearch');
+  const searchTerm = searchInput.value.trim().toLowerCase();
+  
+  if (!searchTerm || callsData.length === 0) {
+    // If no search term or no data, show all calls
+    displayCalls(callsData);
+    return;
+  }
+  
+  // Filter calls based on search term
+  const filteredCalls = callsData.filter(call => {
+    // Search in call type or description
+    return (call.call_type && call.call_type.toLowerCase().includes(searchTerm)) || 
+           (call.call_type_desc && call.call_type_desc.toLowerCase().includes(searchTerm)) ||
+           (call.address && call.address.toLowerCase().includes(searchTerm));
+  });
+  
+  // Display filtered calls
+  displayCalls(filteredCalls);
 } 

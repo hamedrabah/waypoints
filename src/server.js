@@ -139,7 +139,7 @@ app.post('/api/analyze-image', upload.single('image'), async (req, res) => {
     const openAIResponse = await axios.post(OPENAI_API_URL, openAIRequest, {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
       }
     });
     
@@ -290,6 +290,39 @@ app.post('/api/waypoint', async (req, res) => {
   } catch (error) {
     console.error('Waypoint creation error:', error);
     return res.status(500).json({ error: 'Failed to create waypoint', details: error.message });
+  }
+});
+
+/**
+ * Endpoint to provide the Google Maps API key to the frontend
+ */
+app.get('/api/maps-api-key', (req, res) => {
+  if (!process.env.GOOGLE_MAPS_API_KEY) {
+    return res.status(500).json({ error: 'Google Maps API key is not configured' });
+  }
+  
+  res.json({ key: process.env.GOOGLE_MAPS_API_KEY });
+});
+
+/**
+ * Endpoint to fetch recent 911 calls from SF Gov data
+ */
+app.get('/api/911-calls', async (req, res) => {
+  try {
+    const { limit = 50 } = req.query;
+    
+    // Fetch recent 911 calls from SF Gov API
+    const response = await axios.get('https://data.sfgov.org/resource/wg3w-h783.json', {
+      params: {
+        '$limit': limit,
+        '$order': 'incident_datetime DESC'
+      }
+    });
+    
+    return res.json(response.data);
+  } catch (error) {
+    console.error('Error fetching 911 calls:', error);
+    return res.status(500).json({ error: 'Failed to fetch 911 calls data', details: error.message });
   }
 });
 

@@ -898,4 +898,181 @@ body {
   right: 0;
   bottom: 0;
   height: calc(100% - 30px) !important;
+}
+
+/* 911 Calls Styling */
+.calls-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.calls-filters {
+  border-bottom: 1px solid var(--skydio-border);
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.form-select {
+  padding: 10px 15px;
+  border-radius: 4px;
+  border: 1px solid var(--skydio-border);
+  width: 100%;
+  font-size: 14px;
+  background-color: rgba(0, 0, 0, 0.2);
+  color: var(--skydio-text);
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-select:focus {
+  border-color: var(--skydio-accent);
+  box-shadow: 0 0 0 0.2rem rgba(0, 160, 245, 0.25);
+  outline: 0;
+}
+
+.btn-outline-secondary {
+  border: 1px solid var(--skydio-border);
+  color: var(--skydio-text);
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.btn-outline-secondary:hover {
+  background-color: var(--skydio-accent);
+  color: white;
+  border-color: var(--skydio-accent);
+}
+
+.incident-address {
+  font-size: 12px;
+  color: var(--skydio-muted);
+  margin-top: 4px;
+}
+
+/* Dashboard Layout with 911 Calls Rail */
+.dashboard-layout {
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: 20px;
+  height: calc(100vh - 250px);
+  min-height: 600px;
+}
+
+@media (max-width: 992px) {
+  .dashboard-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+}
+
+.calls-rail {
+  background-color: var(--skydio-dark-panel);
+  border: 1px solid var(--skydio-border);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  height: 100%;
+}
+
+.calls-header {
+  padding: 15px;
+  border-bottom: 1px solid var(--skydio-border);
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.calls-header h4 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 15px;
+  color: var(--skydio-text);
+}
+
+.calls-filters {
+  padding: 10px 0;
+}
+
+.map-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.map-content .card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.map-content .card-body {
+  flex: 1;
+  overflow: auto;
+}
+
+.map-panel-full {
+  width: 100%;
+  border: 1px solid var(--skydio-border);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+/* Priority badges for 911 calls */
+.priority-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.priority-high {
+  background-color: var(--skydio-danger);
+  color: white;
+}
+
+.priority-medium {
+  background-color: var(--skydio-warning);
+  color: black;
+}
+
+.priority-low {
+  background-color: var(--skydio-success);
+  color: white;
+}
+
+/* Call type icons */
+.call-icon-container {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--skydio-darker);
+  border-radius: 6px;
+  margin-right: 15px;
+}
+
+/* Specific styling for 911 call items in the rail */
+.calls-rail .incident-item {
+  display: flex;
+  align-items: center;
+  padding: 15px;
+  border-bottom: 1px solid var(--skydio-border);
+}
+
+.calls-rail .incident-details {
+  flex: 1;
+}
+
+.calls-rail .incident-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+.calls-rail .incident-time {
+  font-size: 14px;
+  color: var(--skydio-text);
+  margin-right: 10px;
 } 
