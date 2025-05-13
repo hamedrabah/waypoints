@@ -8,6 +8,7 @@ let selectedImage = null;
 let panorama; // Street View panorama
 let infoWindows = []; // Keep track of info windows
 let callsData = []; // Store 911 calls data
+let callMarkers = []; // Store markers for 911 calls
 const sampleImageResultsCache = {};
 let droneMarker = null; // Drone marker for simulation
 let simulationInProgress = false; // Flag to track if simulation is active
@@ -2325,6 +2326,9 @@ async function fetchRecentCalls(limit = 50) {
     // Display the calls in the UI
     displayCalls(data);
     
+    // Display all calls on the map
+    displayCallsOnMap(data);
+    
     return data;
   } catch (error) {
     console.error('Error fetching 911 calls:', error);
@@ -2638,6 +2642,7 @@ function filterCallsBySeverity(severity) {
   // If we have no data or selected "all", just show all calls
   if (callsData.length === 0 || severity === 'all') {
     displayCalls(callsData);
+    displayCallsOnMap(callsData);
     return;
   }
   
@@ -2671,8 +2676,11 @@ function filterCallsBySeverity(severity) {
     return true;
   });
   
-  // Display the filtered calls
+  // Display the filtered calls in the list
   displayCalls(filteredCalls);
+  
+  // Update the map with filtered calls
+  displayCallsOnMap(filteredCalls);
 }
 
 // Search calls based on user input
@@ -2697,8 +2705,11 @@ function searchCalls() {
            (call.incident_number && call.incident_number.toLowerCase().includes(searchTerm));
   });
   
-  // Display filtered calls
+  // Display filtered calls in the list
   displayCalls(filteredCalls);
+  
+  // Update the map with filtered calls
+  displayCallsOnMap(filteredCalls);
 }
 
 // Slick tab underline animation
@@ -2715,12 +2726,261 @@ function updateSlickTabUnderline() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-  // ... existing code ...
   // Animate slick tab underline on tab change
   const tabs = document.querySelectorAll('.slick-tabs .nav-link');
   tabs.forEach(tab => {
     tab.addEventListener('shown.bs.tab', updateSlickTabUnderline);
   });
   updateSlickTabUnderline();
-  // ... existing code ...
-}); 
+});
+
+// Fetch recent 911 calls from the API
+async function fetchRecentCalls(limit = 50) {
+  try {
+    // Clear the calls list and show loading state
+    const callsList = document.getElementById('callsList');
+    callsList.innerHTML = `
+      <div class="text-center p-4 text-muted">
+        <div class="spinner-border spinner-border-sm" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading 911 calls...</p>
+      </div>
+    `;
+    
+    // Fetch data from our API endpoint
+    const response = await fetch(`/api/911-calls?limit=${limit}`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch 911 calls data');
+    }
+    
+    const data = await response.json();
+    callsData = data; // Store for filtering
+    
+    // Display the calls in the UI
+    displayCalls(data);
+    
+    // Display all calls on the map
+    displayCallsOnMap(data);
+    
+    return data;
+  } catch (error) {
+    console.error('Error fetching 911 calls:', error);
+    
+    // Show error in the calls list
+    const callsList = document.getElementById('callsList');
+    callsList.innerHTML = `
+      <div class="text-center p-4">
+        <div class="alert alert-danger">
+          <i class="bi bi-exclamation-triangle"></i>
+          Failed to load 911 calls: ${error.message}
+        </div>
+        <button class="btn btn-primary btn-sm mt-2" onclick="fetchRecentCalls()">
+          <i class="bi bi-arrow-clockwise"></i> Retry
+        </button>
+      </div>
+    `;
+  }
+}
+
+// Display all 911 calls on the map
+function displayCallsOnMap(calls) {
+  // Clear existing call markers
+  clearCallMarkers();
+  
+  // Check if we have valid calls with coordinates
+  if (!calls || calls.length === 0) {
+    return;
+  }
+  
+  // Make sure the map is visible
+  document.getElementById('resultSection').style.display = 'flex';
+  
+  // Create bounds to fit all markers
+  const bounds = new google.maps.LatLngBounds();
+  
+  // Add each call to the map
+  calls.forEach(call => {
+    // Skip calls without coordinates
+    if (!call.latitude || !call.longitude) {
+      return;
+    }
+    
+    const lat = parseFloat(call.latitude);
+    const lng = parseFloat(call.longitude);
+    
+    if (isNaN(lat) || isNaN(lng)) {
+      return;
+    }
+    
+    // Determine priority and color based on incident category
+    let priority = 'LOW';
+    let markerColor = '#36b27c'; // Default green for low severity
+    
+    if (call.incident_category) {
+      const category = call.incident_category.toLowerCase();
+      if (category.includes('assault') || category.includes('weapon') || category.includes('robbery') || 
+          category.includes('shooting') || category.includes('arson')) {
+        priority = 'HIGH';
+        markerColor = '#e74c3c'; // Red for high severity
+      } else if (category.includes('theft') || category.includes('burglary') || 
+                category.includes('vehicle') || category.includes('fraud')) {
+        priority = 'MEDIUM';
+        markerColor = '#f7b500'; // Yellow for medium severity
+      }
+    }
+    
+    // Format date
+    const callDate = new Date(call.incident_datetime);
+    const formattedDate = callDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+    
+    const formattedTime = callDate.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    // Create a marker
+    const marker = new google.maps.Marker({
+      position: {lat, lng},
+      map: map,
+      title: call.incident_description || call.incident_category || 'Incident',
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        fillColor: markerColor,
+        fillOpacity: 0.8,
+        strokeWeight: 1,
+        strokeColor: '#FFFFFF',
+        scale: 8
+      }
+    });
+    
+    // Create info window content
+    const infoContent = `
+      <div class="marker-details">
+        <div class="marker-header">${call.incident_category || 'Incident'}</div>
+        <div class="marker-content">
+          <strong>${call.incident_description || ''}</strong><br>
+          <div style="margin: 5px 0">
+            <small>Incident #: ${call.incident_number || call.incident_id || 'Unknown'}</small><br>
+            <small>${formattedDate} at ${formattedTime}</small><br>
+            <small>${call.intersection || 'Location unavailable'}</small><br>
+            <small>Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}</small>
+          </div>
+        </div>
+        <div class="marker-footer">
+          <button class="marker-action" onclick="openStreetView(${lat}, ${lng})">
+            <i class="bi bi-signpost-2"></i> Street View
+          </button>
+          <button class="marker-action primary" onclick="addCallAsWaypoint(${lat}, ${lng}, '${(call.incident_description || call.incident_category || 'Incident').replace(/'/g, "\\'")}', '${(call.intersection || 'Unknown location').replace(/'/g, "\\'")}')">
+            <i class="bi bi-plus-circle"></i> Add as Waypoint
+          </button>
+        </div>
+      </div>
+    `;
+    
+    // Create info window
+    const infoWindow = new google.maps.InfoWindow({
+      content: infoContent
+    });
+    
+    // Add click listener
+    marker.addListener('click', function() {
+      // Close all other info windows
+      callMarkers.forEach(m => {
+        if (m.infoWindow && m.infoWindow !== infoWindow) {
+          m.infoWindow.close();
+        }
+      });
+      
+      infoWindow.open(map, marker);
+    });
+    
+    // Store the info window with the marker for reference
+    marker.infoWindow = infoWindow;
+    
+    // Add to call markers array
+    callMarkers.push(marker);
+    
+    // Extend bounds
+    bounds.extend({lat, lng});
+  });
+  
+  // Fit map to bounds if we have markers
+  if (callMarkers.length > 0) {
+    map.fitBounds(bounds);
+    
+    // Don't zoom in too far
+    const listener = google.maps.event.addListener(map, 'idle', function() {
+      if (map.getZoom() > 15) {
+        map.setZoom(15);
+      }
+      google.maps.event.removeListener(listener);
+    });
+  }
+}
+
+// Clear all call markers from the map
+function clearCallMarkers() {
+  callMarkers.forEach(marker => {
+    // Close any open info windows
+    if (marker.infoWindow) {
+      marker.infoWindow.close();
+    }
+    // Remove the marker from the map
+    marker.setMap(null);
+  });
+  
+  // Clear the array
+  callMarkers = [];
+}
+
+// Filter calls by severity
+function filterCallsBySeverity(severity) {
+  // If we have no data or selected "all", just show all calls
+  if (callsData.length === 0 || severity === 'all') {
+    displayCalls(callsData);
+    displayCallsOnMap(callsData);
+    return;
+  }
+  
+  // Filter the existing data by severity
+  const filteredCalls = callsData.filter(call => {
+    const category = (call.incident_category || '').toLowerCase();
+    
+    if (severity === 'high') {
+      return category.includes('assault') || 
+             category.includes('weapon') || 
+             category.includes('robbery') || 
+             category.includes('shooting') || 
+             category.includes('arson');
+    } else if (severity === 'medium') {
+      return category.includes('theft') || 
+             category.includes('burglary') || 
+             category.includes('vehicle') || 
+             category.includes('fraud');
+    } else if (severity === 'low') {
+      return !category.includes('assault') && 
+             !category.includes('weapon') && 
+             !category.includes('robbery') && 
+             !category.includes('shooting') && 
+             !category.includes('arson') && 
+             !category.includes('theft') && 
+             !category.includes('burglary') && 
+             !category.includes('vehicle') && 
+             !category.includes('fraud');
+    }
+    
+    return true;
+  });
+  
+  // Display the filtered calls in the list
+  displayCalls(filteredCalls);
+  
+  // Update the map with filtered calls
+  displayCallsOnMap(filteredCalls);
+} 

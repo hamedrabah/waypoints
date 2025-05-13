@@ -706,14 +706,20 @@ body {
 .incident-item {
   display: flex;
   align-items: center;
-  padding: 12px 15px;
-  border-bottom: 1px solid var(--skydio-border);
-  transition: all 0.2s ease;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  background-color: var(--skydio-dark-panel);
+  border-radius: 8px;
   cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .incident-item:hover {
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: var(--skydio-darker);
+  border-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .incident-icon {
@@ -1044,12 +1050,26 @@ body {
 .call-icon-container {
   width: 40px;
   height: 40px;
+  min-width: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   background-color: var(--skydio-darker);
-  border-radius: 6px;
+  border-radius: 8px;
   margin-right: 15px;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+  position: relative;
+  overflow: visible;
+}
+
+.call-icon-container i {
+  font-size: 18px;
+  text-align: center;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Specific styling for 911 call items in the rail */
@@ -1075,4 +1095,339 @@ body {
   font-size: 14px;
   color: var(--skydio-text);
   margin-right: 10px;
+}
+
+/* Incident additional info styling */
+.incident-info {
+  display: flex;
+  font-size: 11px;
+  margin: 3px 0;
+  color: var(--skydio-muted);
+}
+
+.incident-number {
+  margin-right: 15px;
+  font-family: monospace;
+  color: var(--skydio-accent);
+}
+
+.incident-coords {
+  font-family: monospace;
+}
+
+/* Make the 911 calls rail scrollable */
+.calls-rail #callsList {
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Call action buttons */
+.incident-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.btn-add-waypoint {
+  background: none;
+  border: none;
+  color: var(--skydio-accent);
+  font-size: 16px;
+  padding: 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.btn-add-waypoint:hover {
+  background-color: rgba(0, 160, 245, 0.2);
+  transform: scale(1.1);
+}
+
+/* Sample Images */
+.sample-images-container {
+  margin-top: 10px;
+}
+
+.sample-image {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  height: 80px;
+  border: 1px solid var(--skydio-border);
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.sample-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.sample-image:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.sample-image.selected {
+  border: 3px solid var(--skydio-accent);
+}
+
+.sample-image-label {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  font-size: 10px;
+  padding: 3px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sample-image-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.sample-image-placeholder i {
+  font-size: 24px;
+  color: var(--skydio-muted);
+}
+
+/* --- Slick Tab UI Customization --- */
+.slick-tabs {
+  position: relative;
+  background: rgba(20, 24, 34, 0.7);
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 4px 24px 0 rgba(31, 38, 135, 0.12);
+  overflow: visible;
+  display: flex;
+  justify-content: center;
+  gap: 0;
+}
+.slick-tabs .nav-link {
+  background: none;
+  border: none;
+  color: var(--skydio-muted);
+  font-size: 1.1rem;
+  padding: 16px 32px 12px 32px;
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  z-index: 1;
+  border-radius: 12px 12px 0 0;
+}
+.slick-tabs .nav-link.active {
+  color: #4fc3f7;
+  font-weight: 600;
+  background: rgba(0,160,245,0.08);
+}
+.slick-tabs .nav-link:hover:not(.active) {
+  color: #90caf9;
+  background: rgba(0,160,245,0.04);
+}
+.slick-tabs .nav-link i {
+  font-size: 1.3em;
+  margin-right: 6px;
+}
+.slick-tab-underline {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 50%;
+  height: 3px;
+  background: linear-gradient(90deg, #4fc3f7, #1976d2);
+  border-radius: 2px;
+  transition: left 0.3s cubic-bezier(.4,0,.2,1);
+  z-index: 0;
+  pointer-events: none;
+}
+/* Responsive for tabs */
+@media (max-width: 600px) {
+  .slick-tabs .nav-link {
+    padding: 12px 10px 8px 10px;
+    font-size: 0.98rem;
+  }
+  .slick-tab-underline {
+    height: 2px;
+  }
+}
+
+/* Navigation Bar */
+.nav-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0;
+  background-color: transparent;
+}
+
+.nav-bar .nav-item {
+  flex: 1;
+  text-align: center;
+  margin: 0;
+}
+
+.nav-bar .nav-link {
+  width: 100%;
+  padding: 12px 20px;
+  color: var(--skydio-muted);
+  font-weight: 500;
+  font-size: 14px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.nav-bar .nav-link:hover {
+  color: var(--skydio-text);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.nav-bar .nav-link.active {
+  color: var(--skydio-accent);
+  background-color: rgba(0, 160, 245, 0.1);
+  border-bottom: 2px solid var(--skydio-accent);
+}
+
+/* Input Sections */
+.input-section {
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+
+.input-section.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Hello World Notebook Section */
+#helloWorldSection {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+#helloWorldSection .card-body {
+  padding: 40px;
+}
+
+#helloWorldSection h1 {
+  color: var(--skydio-accent);
+  font-weight: 700;
+  font-size: 28px;
+  margin-bottom: 20px;
+}
+
+#helloWorldSection h2 {
+  color: var(--skydio-text);
+  font-weight: 600;
+  font-size: 22px;
+  margin-top: 25px;
+  margin-bottom: 15px;
+}
+
+#helloWorldSection h3 {
+  color: var(--skydio-accent);
+  font-weight: 600;
+  font-size: 18px;
+  margin-top: 20px;
+  margin-bottom: 12px;
+}
+
+#helloWorldSection .lead {
+  font-size: 18px;
+  color: var(--skydio-text);
+}
+
+#helloWorldSection p {
+  color: var(--skydio-muted);
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+
+#helloWorldSection strong {
+  color: var(--skydio-text);
+  font-weight: 600;
+}
+
+#helloWorldSection a {
+  color: var(--skydio-accent);
+  text-decoration: none;
+}
+
+#helloWorldSection a:hover {
+  text-decoration: underline;
+}
+
+#helloWorldSection hr {
+  margin: 30px 0;
+  border-color: var(--skydio-border);
+  opacity: 0.5;
+}
+
+#helloWorldSection blockquote {
+  background-color: rgba(0, 160, 245, 0.1);
+  border-left: 4px solid var(--skydio-accent);
+  padding: 15px 20px;
+  margin: 20px 0;
+  border-radius: 0 4px 4px 0;
+}
+
+#helloWorldSection blockquote p {
+  margin-bottom: 0;
+  color: var(--skydio-text);
+}
+
+#helloWorldSection ul, #helloWorldSection ol {
+  padding-left: 20px;
+  margin-bottom: 20px;
+  color: var(--skydio-muted);
+}
+
+#helloWorldSection li {
+  margin-bottom: 8px;
+  line-height: 1.6;
+}
+
+#helloWorldSection ul ul, #helloWorldSection ol ol, #helloWorldSection ul ol, #helloWorldSection ol ul {
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.markdown-content {
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
 } 

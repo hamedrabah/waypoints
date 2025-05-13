@@ -94,11 +94,8 @@ app.post('/api/geocode', async (req, res) => {
  */
 app.post('/api/analyze-image', upload.single('image'), async (req, res) => {
   try {
-    const { city } = req.body;
-    
-    if (!city) {
-      return res.status(400).json({ error: 'City name is required' });
-    }
+    // City will always be San Francisco
+    const city = 'San Francisco';
     
     if (!req.file) {
       return res.status(400).json({ error: 'Image file is required' });
@@ -122,7 +119,7 @@ app.post('/api/analyze-image', upload.single('image'), async (req, res) => {
           content: [
             {
               type: "text",
-              text: `This image is from ${city}. Please analyze it and provide the top 5 most probable locations for the place shown, with their coordinates and a confidence score. Return ONLY a plain JSON object with a "locations" array containing 5 objects, each with these keys: lat (number), lng (number), location_description (string), confidence (number between 0-1). Sort the locations by confidence in descending order. Do not include code blocks, backticks, or any other formatting.`
+              text: `This image is from ${city}. Please analyze it and provide the top 3 most probable locations for the place shown, with their coordinates and a confidence score. Return ONLY a plain JSON object with a \"locations\" array containing 3 objects, each with these keys: lat (number), lng (number), location_description (string), confidence (integer between 0 and 100). The sum of the 3 confidence values must be exactly 100. Sort the locations by confidence in descending order. Do not include code blocks, backticks, or any other formatting.`
             },
             {
               type: "image_url",
@@ -173,9 +170,29 @@ app.post('/api/analyze-image', upload.single('image'), async (req, res) => {
       
       // Check if we have the expected locations array
       if (parsedResponse.locations && Array.isArray(parsedResponse.locations) && parsedResponse.locations.length > 0) {
-        // Return the full array of locations
+        // Normalize confidence values to sum to 100
+        let locs = parsedResponse.locations;
+        // Only keep the top 3 if more are returned
+        if (locs.length > 3) locs = locs.slice(0, 3);
+        // Extract confidences
+        let confidences = locs.map(l => typeof l.confidence === 'number' ? l.confidence : 0);
+        let sum = confidences.reduce((a, b) => a + b, 0);
+        if (sum !== 100) {
+          // Scale to sum to 100
+          confidences = confidences.map(c => c / sum * 100);
+          // Round to integers
+          confidences = confidences.map(Math.round);
+          // Adjust the largest value to make the sum exactly 100
+          let newSum = confidences.reduce((a, b) => a + b, 0);
+          if (newSum !== 100) {
+            let maxIdx = confidences.indexOf(Math.max(...confidences));
+            confidences[maxIdx] += 100 - newSum;
+          }
+        }
+        // Assign back to locations
+        locs = locs.map((l, i) => ({ ...l, confidence: confidences[i] }));
         return res.json({
-          locations: parsedResponse.locations,
+          locations: locs,
           image_filename: req.file.filename
         });
       } else if (parsedResponse.lat && parsedResponse.lng) {

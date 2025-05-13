@@ -13,7 +13,17 @@
   <!-- Sidebar Navigation -->
   <div class="sidebar">
     <div class="sidebar-logo">
-      <img src="images/Skydio_Logo.svg" alt="Skydio">
+      <!-- Mock Skydio SVG Logo: Sleek Blue Gradient Ring with Thin White Inner Ring (Palantir-esque) -->
+      <svg width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="skydioBlueGradient" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#4fc3f7"/>
+            <stop offset="100%" stop-color="#00a0f5"/>
+          </radialGradient>
+        </defs>
+        <circle cx="19" cy="19" r="15" stroke="url(#skydioBlueGradient)" stroke-width="4" fill="none" />
+        <circle cx="19" cy="19" r="8.5" stroke="#fff" stroke-width="2" fill="none" />
+      </svg>
     </div>
     <div class="sidebar-nav">
       <div class="nav-item">
@@ -22,18 +32,13 @@
         </a>
       </div>
       <div class="nav-item">
-        <a href="#" class="nav-link" title="Flights">
-          <i class="bi bi-camera-video"></i>
+        <a href="#" class="nav-link" title="Notebook">
+          <i class="bi bi-journal-text"></i>
         </a>
       </div>
       <div class="nav-item">
-        <a href="#" class="nav-link" title="Waypoints">
-          <i class="bi bi-geo-alt"></i>
-        </a>
-      </div>
-      <div class="nav-item">
-        <a href="#" class="nav-link" title="Settings">
-          <i class="bi bi-gear"></i>
+        <a href="https://github.com/hamedrabah/waypoints" target="_blank" class="nav-link" title="Code">
+          <i class="bi bi-code-square"></i>
         </a>
       </div>
     </div>
@@ -44,20 +49,9 @@
     <!-- Header -->
     <div class="app-header">
       <div class="header-title">
-        <span>Waypoints</span>
+        <span>Demo</span>
         <span class="breadcrumb-separator">/</span>
-        <span>Waypoint Manager</span>
-      </div>
-      <div class="header-controls">
-        <button class="header-btn">
-          <i class="bi bi-map"></i> Map
-        </button>
-        <button class="header-btn">
-          <i class="bi bi-columns"></i> Split
-        </button>
-        <button class="header-btn">
-          <i class="bi bi-camera-video"></i> Video
-        </button>
+        <span>San Francisco PD</span>
       </div>
     </div>
 
@@ -66,64 +60,94 @@
       <!-- Input Card -->
       <div class="card mb-4">
         <div class="card-header">
-          <ul class="nav nav-tabs card-header-tabs" id="inputTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-              <button class="nav-link active" id="address-tab" data-bs-toggle="tab" data-bs-target="#address-tab-pane" type="button" role="tab" aria-controls="address-tab-pane" aria-selected="true">Address Input</button>
-            </li>
-            <li class="nav-item" role="presentation">
-              <button class="nav-link" id="image-tab" data-bs-toggle="tab" data-bs-target="#image-tab-pane" type="button" role="tab" aria-controls="image-tab-pane" aria-selected="false">Image Analysis</button>
-            </li>
-          </ul>
+          <div class="nav-bar">
+            <div class="nav-item">
+              <button class="nav-link active" id="address-nav">
+                <i class="bi bi-geo-alt-fill"></i> Address Input
+              </button>
+            </div>
+            <div class="nav-item">
+              <button class="nav-link" id="image-nav">
+                <i class="bi bi-image-fill"></i> Image Analysis
+              </button>
+            </div>
+          </div>
         </div>
         <div class="card-body">
-          <div class="tab-content" id="inputTabsContent">
-            <!-- Address Input Tab -->
-            <div class="tab-pane fade show active" id="address-tab-pane" role="tabpanel" aria-labelledby="address-tab" tabindex="0">
-              <form id="addressForm">
-                <div class="mb-3">
-                  <label for="address" class="form-label">Street Address, Business or Landmark</label>
-                  <input type="text" class="form-control" id="address" placeholder="Enter a location" required>
+          <!-- Address Input Section -->
+          <div class="input-section active" id="address-section">
+            <form id="addressForm">
+              <div class="mb-3">
+                <label for="address" class="form-label">Street Address, Business or Landmark</label>
+                <input type="text" class="form-control" id="address" placeholder="Enter a location" required>
+              </div>
+              <div class="d-grid">
+                <button type="submit" class="btn btn-primary">
+                  <i class="bi bi-geo-alt"></i> Create Waypoint
+                </button>
+              </div>
+            </form>
+          </div>
+          
+          <!-- Image Upload Section -->
+          <div class="input-section" id="image-section">
+            <form id="imageForm">
+              <div class="uploader-container" id="uploaderContainer">
+                <div class="uploader-icon">
+                  <i class="bi bi-image"></i>
                 </div>
-                <div class="d-grid">
-                  <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-geo-alt"></i> Create Waypoint
-                  </button>
+                <div class="uploader-text">
+                  <strong>Drop an image here</strong> or click to browse
                 </div>
-              </form>
-            </div>
-            
-            <!-- Image Upload Tab -->
-            <div class="tab-pane fade" id="image-tab-pane" role="tabpanel" aria-labelledby="image-tab" tabindex="0">
-              <form id="imageForm">
-                <div class="mb-3">
-                  <label for="city" class="form-label">City</label>
-                  <input type="text" class="form-control" id="city" placeholder="Enter the city name" required>
-                </div>
-                
-                <div class="uploader-container" id="uploaderContainer">
-                  <div class="uploader-icon">
-                    <i class="bi bi-image"></i>
+                <input type="file" class="file-input-hidden" id="imageUpload" accept="image/*" required>
+              </div>
+              
+              <div id="imagePreview" class="mb-3 text-center" style="display:none;">
+                <img id="previewImg" class="img-fluid rounded" />
+                <button type="button" class="btn btn-sm btn-outline-danger mt-2" id="removeImage">
+                  <i class="bi bi-trash"></i> Remove
+                </button>
+              </div>
+              
+              <div class="my-3">
+                <h6>Or select a sample image:</h6>
+                <div class="sample-images-container">
+                  <div class="row g-2">
+                    <div class="col">
+                      <div class="sample-image" data-sample="golden-gate">
+                        <img src="images/1.jpg" class="img-fluid" alt="Golden Gate Bridge">
+                      </div>
+                    </div>
+                    <div class="col">
+                      <div class="sample-image" data-sample="painted-ladies">
+                        <img src="images/2.jpg" class="img-fluid" alt="Painted Ladies">
+                      </div>
+                    </div>
+                    <div class="col">
+                      <div class="sample-image" data-sample="lombard-street">
+                        <img src="images/3.jpg" class="img-fluid" alt="Lombard Street">
+                      </div>
+                    </div>
+                    <div class="col">
+                      <div class="sample-image" data-sample="fishermans-wharf">
+                        <img src="images/4.jpg" class="img-fluid" alt="Fisherman's Wharf">
+                      </div>
+                    </div>
+                    <div class="col">
+                      <div class="sample-image" data-sample="chinatown">
+                        <img src="images/5.jpeg" class="img-fluid" alt="Chinatown">
+                      </div>
+                    </div>
                   </div>
-                  <div class="uploader-text">
-                    <strong>Drop an image here</strong> or click to browse
-                  </div>
-                  <input type="file" class="file-input-hidden" id="imageUpload" accept="image/*" required>
                 </div>
-                
-                <div id="imagePreview" class="mb-3 text-center" style="display:none;">
-                  <img id="previewImg" class="img-fluid rounded" />
-                  <button type="button" class="btn btn-sm btn-outline-danger mt-2" id="removeImage">
-                    <i class="bi bi-trash"></i> Remove
-                  </button>
-                </div>
-                
-                <div class="d-grid">
-                  <button type="submit" class="btn btn-primary">
-                    <i class="bi bi-search"></i> Analyze Image & Create Waypoint
-                  </button>
-                </div>
-              </form>
-            </div>
+              </div>
+              
+              <div class="d-grid mt-3">
+                <button type="submit" class="btn btn-primary">
+                  <i class="bi bi-search"></i> Analyze Image & Create Waypoint
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </div>
@@ -141,11 +165,25 @@
                   <i class="bi bi-search"></i>
                 </button>
               </div>
-              <select class="form-select mt-2" id="callsLimit">
-                <option value="25">25 calls</option>
-                <option value="50" selected>50 calls</option>
-                <option value="100">100 calls</option>
-              </select>
+              <div class="filter-row mt-2">
+                <div class="row">
+                  <div class="col-6">
+                    <select class="form-select" id="callsLimit">
+                      <option value="25">25 calls</option>
+                      <option value="50" selected>50 calls</option>
+                      <option value="100">100 calls</option>
+                    </select>
+                  </div>
+                  <div class="col-6">
+                    <select class="form-select" id="callsSeverity">
+                      <option value="all" selected>All Severity</option>
+                      <option value="high">High Priority</option>
+                      <option value="medium">Medium Priority</option>
+                      <option value="low">Low Priority</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           <div id="callsList" class="timeline-wrapper">
@@ -248,7 +286,7 @@
       </div>
 
       <div class="footer">
-        <span class="text-muted">Skydio Waypoint Manager &copy; 2024 | Requires Skydio Cloud API credentials</span>
+        <!-- Footer content removed -->
       </div>
     </div>
   </div>
