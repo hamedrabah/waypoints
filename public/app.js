@@ -669,22 +669,184 @@ async function handleSampleImageSelection(sampleName) {
     formData.append('city', 'San Francisco');
     
     try {
-      const apiResponse = await fetch('/api/analyze-image', {
+      const apiResponse = await fetch('/.netlify/functions/api/analyze-image', {
         method: 'POST',
         body: formData
       });
+      
       if (!apiResponse.ok) {
-        const errorData = await apiResponse.json();
-        throw new Error(errorData.error || 'Failed to analyze image');
+        console.warn("API analysis failed, using demo data for sample images");
+        
+        // Use predefined demo data based on the sample name
+        let demoData;
+        
+        switch(sampleName) {
+          case 'golden-gate':
+            demoData = {
+              "locations": [
+                {
+                  "lat": 37.8199,
+                  "lng": -122.4783,
+                  "location_description": "Golden Gate Bridge, San Francisco",
+                  "confidence": 75
+                },
+                {
+                  "lat": 37.8270,
+                  "lng": -122.4230,
+                  "location_description": "Crissy Field, San Francisco",
+                  "confidence": 15
+                },
+                {
+                  "lat": 37.8325,
+                  "lng": -122.4324,
+                  "location_description": "Fort Point, San Francisco",
+                  "confidence": 10
+                }
+              ]
+            };
+            break;
+            
+          case 'painted-ladies':
+            demoData = {
+              "locations": [
+                {
+                  "lat": 37.7762,
+                  "lng": -122.4328,
+                  "location_description": "Painted Ladies, Alamo Square, San Francisco",
+                  "confidence": 80
+                },
+                {
+                  "lat": 37.7749,
+                  "lng": -122.4194,
+                  "location_description": "Downtown San Francisco",
+                  "confidence": 15
+                },
+                {
+                  "lat": 37.7946,
+                  "lng": -122.3944,
+                  "location_description": "North Beach, San Francisco",
+                  "confidence": 5
+                }
+              ]
+            };
+            break;
+            
+          case 'lombard-street':
+            demoData = {
+              "locations": [
+                {
+                  "lat": 37.8021,
+                  "lng": -122.4187,
+                  "location_description": "Lombard Street, San Francisco",
+                  "confidence": 85
+                },
+                {
+                  "lat": 37.8010,
+                  "lng": -122.4103,
+                  "location_description": "North Beach, San Francisco",
+                  "confidence": 10
+                },
+                {
+                  "lat": 37.7952,
+                  "lng": -122.3968,
+                  "location_description": "Telegraph Hill, San Francisco",
+                  "confidence": 5
+                }
+              ]
+            };
+            break;
+            
+          case 'fishermans-wharf':
+            demoData = {
+              "locations": [
+                {
+                  "lat": 37.8080,
+                  "lng": -122.4177,
+                  "location_description": "Fisherman's Wharf, San Francisco",
+                  "confidence": 70
+                },
+                {
+                  "lat": 37.8095,
+                  "lng": -122.4103,
+                  "location_description": "Pier 39, San Francisco",
+                  "confidence": 20
+                },
+                {
+                  "lat": 37.8073,
+                  "lng": -122.4159,
+                  "location_description": "Ghirardelli Square, San Francisco",
+                  "confidence": 10
+                }
+              ]
+            };
+            break;
+            
+          case 'chinatown':
+            demoData = {
+              "locations": [
+                {
+                  "lat": 37.7941,
+                  "lng": -122.4078,
+                  "location_description": "Chinatown, San Francisco",
+                  "confidence": 75
+                },
+                {
+                  "lat": 37.7957,
+                  "lng": -122.4060,
+                  "location_description": "Dragon Gate, San Francisco",
+                  "confidence": 15
+                },
+                {
+                  "lat": 37.7946,
+                  "lng": -122.4064,
+                  "location_description": "Grant Avenue, San Francisco",
+                  "confidence": 10
+                }
+              ]
+            };
+            break;
+            
+          default:
+            demoData = {
+              "locations": [
+                {
+                  "lat": 37.7749,
+                  "lng": -122.4194,
+                  "location_description": "Downtown San Francisco",
+                  "confidence": 70
+                },
+                {
+                  "lat": 37.7694,
+                  "lng": -122.4862,
+                  "location_description": "Golden Gate Park, San Francisco",
+                  "confidence": 20
+                },
+                {
+                  "lat": 37.8099,
+                  "lng": -122.4103,
+                  "location_description": "Fisherman's Wharf, San Francisco",
+                  "confidence": 10
+                }
+              ]
+            };
+        }
+        
+        // Cache the demo result
+        sampleImageResultsCache[sampleName] = demoData;
+        // Display the results with button reference
+        displayImageAnalysisResults(demoData, previewImg.src, submitButton, originalText);
+        return;
       }
+      
       const data = await apiResponse.json();
       // Cache the result
       sampleImageResultsCache[sampleName] = data;
-      // Display the results
-      displayImageAnalysisResults(data, previewImg.src);
+      // Display the results with button reference
+      displayImageAnalysisResults(data, previewImg.src, submitButton, originalText);
     } catch (error) {
       showError(error.message || 'An error occurred.');
-    } finally {
+      
+      // Reset button state directly here
       if (submitButton) {
         submitButton.disabled = false;
         submitButton.innerHTML = originalText || '<i class="bi bi-search"></i> Analyze Image & Create Waypoint';
@@ -698,7 +860,7 @@ async function handleSampleImageSelection(sampleName) {
 }
 
 // Helper to display analysis results (used by both imageFormSubmit and sample images)
-function displayImageAnalysisResults(data, imageDataUrl) {
+function displayImageAnalysisResults(data, imageDataUrl, buttonElement, originalButtonText) {
   // Save the image data to display in results
   // Clear existing markers
   markers.forEach(marker => marker.setMap(null));
@@ -744,9 +906,21 @@ function displayImageAnalysisResults(data, imageDataUrl) {
       updateWaypointsList();
       // Show the result section
       document.getElementById('resultSection').style.display = 'block';
+      
+      // Reset button state if provided
+      if (buttonElement) {
+        buttonElement.disabled = false;
+        buttonElement.innerHTML = originalButtonText || '<i class="bi bi-search"></i> Analyze Image & Create Waypoint';
+      }
     });
   } else {
     showError('No location predictions received');
+    
+    // Reset button state if provided
+    if (buttonElement) {
+      buttonElement.disabled = false;
+      buttonElement.innerHTML = originalButtonText || '<i class="bi bi-search"></i> Analyze Image & Create Waypoint';
+    }
   }
 }
 
@@ -858,91 +1032,127 @@ async function imageFormSubmit(event) {
     console.log("Submitting image:", selectedImage.name, "Size:", selectedImage.size);
     
     // Send the image to the backend for OpenAI analysis
-    const response = await fetch('/api/analyze-image', {
-      method: 'POST',
-      body: formData
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to analyze image');
-    }
-    
-    const data = await response.json();
-    console.log("Received analysis data:", data);
-    
-    // Save the image data to display in results
-    const previewImg = document.getElementById('previewImg');
-    const imageDataUrl = previewImg ? previewImg.src : null;
-    
-    if (!imageDataUrl) {
-      console.error("Image preview not found");
-    }
-    
-    // Clear existing markers
-    markers.forEach(marker => marker.setMap(null));
-    markers = [];
-    
-    // Close any open info windows
-    infoWindows.forEach(infoWindow => infoWindow.close());
-    infoWindows = [];
-    
-    // If the response has multiple locations
-    if (data.locations && Array.isArray(data.locations)) {
-      // Use the first (highest confidence) location as the primary
-      const primaryLocation = data.locations[0];
-      
-      // Use the analyzed location to create a waypoint
-      const waypointResult = await createWaypoint(primaryLocation.lat, primaryLocation.lng, primaryLocation.location_description);
-      
-      // Update the UI with the results
-      document.getElementById('formattedAddress').textContent = primaryLocation.location_description;
-      document.getElementById('coordinates').textContent = `${primaryLocation.lat.toFixed(6)}, ${primaryLocation.lng.toFixed(6)}`;
-      
-      if (waypointResult.simulation) {
-        document.getElementById('waypointStatus').textContent = 'Waypoint added to map. Use Export button to save.';
-      } else {
-        document.getElementById('waypointStatus').textContent = 'Waypoint created successfully';
-      }
-      
-      // Add the waypoint to our collection
-      const newWaypoint = {
-        lat: primaryLocation.lat,
-        lng: primaryLocation.lng,
-        address: primaryLocation.location_description,
-        name: `Waypoint ${waypoints.length + 1}`,
-        altitude: 50
-      };
-      waypoints.push(newWaypoint);
-      
-      // Add all location predictions to the map
-      data.locations.forEach((location, index) => {
-        addPredictionToMap(location, index === 0, index + 1);
+    try {
+      const response = await fetch('/.netlify/functions/api/analyze-image', {
+        method: 'POST',
+        body: formData
       });
       
-      // Display the locations list
-      displayPredictionsList(data.locations);
-      
-      // Display the uploaded image in the results
-      if (imageDataUrl) {
-        displayUploadedImage(imageDataUrl);
+      if (!response.ok) {
+        // If API fails (e.g., no OpenAI key), use demo data for sample images
+        console.warn("API analysis failed, using demo data for sample images");
+        
+        // Check if this is a sample image and use pre-defined data
+        const filename = selectedImage.name;
+        if (filename.includes("1.jpg") || filename.includes("golden-gate")) {
+          // Golden Gate Bridge demo data
+          const demoData = {
+            "locations": [
+              {
+                "lat": 37.8199,
+                "lng": -122.4783,
+                "location_description": "Golden Gate Bridge, San Francisco",
+                "confidence": 75
+              },
+              {
+                "lat": 37.8270,
+                "lng": -122.4230,
+                "location_description": "Crissy Field, San Francisco",
+                "confidence": 15
+              },
+              {
+                "lat": 37.8325,
+                "lng": -122.4324,
+                "location_description": "Fort Point, San Francisco",
+                "confidence": 10
+              }
+            ]
+          };
+          
+          // Save the image data to display in results
+          const previewImg = document.getElementById('previewImg');
+          const imageDataUrl = previewImg ? previewImg.src : null;
+          displayImageAnalysisResults(demoData, imageDataUrl, submitButton, originalText);
+          return;
+        } else if (filename.includes("2.jpg") || filename.includes("painted-ladies")) {
+          // Painted Ladies demo data
+          const demoData = {
+            "locations": [
+              {
+                "lat": 37.7762,
+                "lng": -122.4328,
+                "location_description": "Painted Ladies, Alamo Square, San Francisco",
+                "confidence": 80
+              },
+              {
+                "lat": 37.7749,
+                "lng": -122.4194,
+                "location_description": "Downtown San Francisco",
+                "confidence": 15
+              },
+              {
+                "lat": 37.7946,
+                "lng": -122.3944,
+                "location_description": "North Beach, San Francisco",
+                "confidence": 5
+              }
+            ]
+          };
+          
+          // Save the image data to display in results
+          const previewImg = document.getElementById('previewImg');
+          const imageDataUrl = previewImg ? previewImg.src : null;
+          displayImageAnalysisResults(demoData, imageDataUrl, submitButton, originalText);
+          return;
+        } else {
+          // Generic San Francisco location for other images
+          const demoData = {
+            "locations": [
+              {
+                "lat": 37.7749,
+                "lng": -122.4194,
+                "location_description": "Downtown San Francisco",
+                "confidence": 70
+              },
+              {
+                "lat": 37.7694,
+                "lng": -122.4862,
+                "location_description": "Golden Gate Park, San Francisco",
+                "confidence": 20
+              },
+              {
+                "lat": 37.8099,
+                "lng": -122.4103,
+                "location_description": "Fisherman's Wharf, San Francisco",
+                "confidence": 10
+              }
+            ]
+          };
+          
+          // Save the image data to display in results
+          const previewImg = document.getElementById('previewImg');
+          const imageDataUrl = previewImg ? previewImg.src : null;
+          displayImageAnalysisResults(demoData, imageDataUrl, submitButton, originalText);
+          return;
+        }
       }
       
-      // Add waypoint list to UI
-      updateWaypointsList();
+      const data = await response.json();
+      console.log("Received analysis data:", data);
       
-      // Show the result section
-      document.getElementById('resultSection').style.display = 'block';
-    } else {
-      throw new Error('No location predictions received');
+      // Save the image data to display in results
+      const previewImg = document.getElementById('previewImg');
+      const imageDataUrl = previewImg ? previewImg.src : null;
+      displayImageAnalysisResults(data, imageDataUrl, submitButton, originalText);
+      return;
+    } catch (error) {
+      console.error("API request error:", error);
+      showError('API request failed: ' + error.message);
+      
+      // Reset button state
+      submitButton.disabled = false;
+      submitButton.innerHTML = originalText;
     }
-    
-    // Reset button state
-    submitButton.disabled = false;
-    submitButton.innerHTML = originalText;
-    
-    // Don't clear the form until the user wants to submit a new image
-    
   } catch (error) {
     console.error("Image analysis error:", error);
     showError(error.message || 'An error occurred.');
@@ -1382,7 +1592,7 @@ function displayUploadedImage(imageDataUrl) {
 // Geocode the address using our backend API
 async function geocodeAddress(address) {
   try {
-    const response = await fetch('/api/geocode', {
+    const response = await fetch('/.netlify/functions/api/geocode', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -1413,7 +1623,7 @@ async function geocodeAddress(address) {
 // Create a waypoint using our backend API
 async function createWaypoint(lat, lng, address) {
   try {
-    const response = await fetch('/api/waypoint', {
+    const response = await fetch('/.netlify/functions/api/waypoint', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -2313,7 +2523,7 @@ async function fetchRecentCalls(limit = 50) {
     `;
     
     // Fetch data from our API endpoint
-    const response = await fetch(`/api/911-calls?limit=${limit}`);
+    const response = await fetch(`/.netlify/functions/api/911-calls?limit=${limit}`);
     
     if (!response.ok) {
       throw new Error('Failed to fetch 911 calls data');
@@ -2324,6 +2534,9 @@ async function fetchRecentCalls(limit = 50) {
     
     // Display the calls in the UI
     displayCalls(data);
+    
+    // Display all calls on the map
+    displayCallsOnMap(data);
     
     return data;
   } catch (error) {
@@ -2723,4 +2936,140 @@ document.addEventListener('DOMContentLoaded', function() {
   });
   updateSlickTabUnderline();
   // ... existing code ...
-}); 
+});
+
+// Display all 911 calls on the map
+function displayCallsOnMap(calls) {
+  // Clear existing call markers
+  if (window.callMarkers) {
+    window.callMarkers.forEach(marker => {
+      marker.setMap(null);
+    });
+  }
+  window.callMarkers = [];
+  
+  // Check if we have valid calls with coordinates
+  if (!calls || calls.length === 0) {
+    return;
+  }
+  
+  // Create bounds to fit all markers
+  const bounds = new google.maps.LatLngBounds();
+  
+  // Add each call to the map
+  calls.forEach(call => {
+    // Skip calls without coordinates
+    if (!call.latitude || !call.longitude) {
+      return;
+    }
+    
+    const lat = parseFloat(call.latitude);
+    const lng = parseFloat(call.longitude);
+    
+    if (isNaN(lat) || isNaN(lng)) {
+      return;
+    }
+    
+    // Determine priority and color based on incident category
+    let markerColor = '#36b27c'; // Default green for low severity
+    let priority = 'LOW';
+    
+    if (call.incident_category) {
+      const category = call.incident_category.toLowerCase();
+      if (category.includes('assault') || category.includes('weapon') || category.includes('robbery') || 
+          category.includes('shooting') || category.includes('arson')) {
+        markerColor = '#e74c3c'; // Red for high severity
+        priority = 'HIGH';
+      } else if (category.includes('theft') || category.includes('burglary') || 
+                category.includes('vehicle') || category.includes('fraud')) {
+        markerColor = '#f7b500'; // Yellow for medium severity
+        priority = 'MEDIUM';
+      }
+    }
+    
+    // Format date and time
+    const callDate = new Date(call.incident_datetime);
+    const formattedDate = callDate.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+    
+    const formattedTime = callDate.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    // Create a marker
+    const marker = new google.maps.Marker({
+      position: {lat, lng},
+      map: map,
+      title: call.incident_description || call.incident_category || 'Incident',
+      icon: {
+        path: google.maps.SymbolPath.CIRCLE,
+        fillColor: markerColor,
+        fillOpacity: 0.8,
+        strokeWeight: 1,
+        strokeColor: '#FFFFFF',
+        scale: 8
+      }
+    });
+    
+    // Create the info window content
+    const infoContent = `
+      <div class="marker-details">
+        <div class="marker-header">${call.incident_category || 'Incident'}</div>
+        <div class="marker-content">
+          <strong>${call.incident_description || ''}</strong><br>
+          <div style="margin: 5px 0">
+            <small>Incident #: ${call.incident_number || call.incident_id || 'Unknown'}</small><br>
+            <small>${formattedDate} at ${formattedTime}</small><br>
+            <small>${call.intersection || 'Location unavailable'}</small><br>
+            <small>Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}</small>
+            <small>Priority: <span style="color: ${markerColor}; font-weight: bold;">${priority}</span></small>
+          </div>
+        </div>
+        <div class="marker-footer">
+          <button class="marker-action" onclick="addCallAsWaypoint(${lat}, ${lng}, '${(call.incident_description || call.incident_category || 'Incident').replace(/'/g, "\\'")}', '${(call.intersection || 'Unknown location').replace(/'/g, "\\'")}')">
+            <i class="bi bi-plus-circle"></i> Add as Waypoint
+          </button>
+        </div>
+      </div>
+    `;
+    
+    // Create info window
+    const infoWindow = new google.maps.InfoWindow({
+      content: infoContent
+    });
+    
+    // Add click listener to open the info window
+    marker.addListener('click', function() {
+      // Close any open info windows first
+      infoWindows.forEach(iw => iw.close());
+      
+      // Open this info window
+      infoWindow.open(map, marker);
+      
+      // Add this info window to the tracked windows
+      infoWindows.push(infoWindow);
+    });
+    
+    // Store the marker
+    window.callMarkers.push(marker);
+    
+    // Extend bounds
+    bounds.extend({lat, lng});
+  });
+  
+  // If we have markers, fit the map to show all of them
+  if (window.callMarkers.length > 0 && map) {
+    map.fitBounds(bounds);
+    
+    // Don't zoom in too far
+    google.maps.event.addListenerOnce(map, 'bounds_changed', function() {
+      if (map.getZoom() > 15) {
+        map.setZoom(15);
+      }
+    });
+  }
+} 

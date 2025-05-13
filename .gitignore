@@ -29,4 +29,17 @@ logs
 .Spotlight-V100
 .Trashes
 ehthumbs.db
-Thumbs.db 
+Thumbs.db
+
+# Netlify
+.netlify
+# Local Netlify folder
+.netlify
+# Build cache
+.cache
+# Local development
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local 
