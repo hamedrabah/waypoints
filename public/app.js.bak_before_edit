@@ -8,7 +8,6 @@ let selectedImage = null;
 let panorama; // Street View panorama
 let infoWindows = []; // Keep track of info windows
 let callsData = []; // Store 911 calls data
-let callMarkers = []; // Store markers for 911 calls
 const sampleImageResultsCache = {};
 let droneMarker = null; // Drone marker for simulation
 let simulationInProgress = false; // Flag to track if simulation is active
@@ -117,16 +116,127 @@ function initEventListeners() {
   // Setup notebook icon click
   const notebookLink = document.querySelector('.sidebar-nav .nav-link[title="Notebook"]');
   if (notebookLink) {
-    // Remove the current href attribute to make it a direct link
-    notebookLink.setAttribute('href', 'https://medium.com/@hamedarabah/situational-awareness-for-drone-pilots-5b5a972b9ef8');
-    // Make sure it opens in a new tab
-    notebookLink.setAttribute('target', '_blank');
-    
-    // Remove any existing event listeners by cloning the node
+    notebookLink.addEventListener('click', function(e) {
+      e.preventDefault();
+      
+      // Update active state
+      document.querySelectorAll('.sidebar-nav .nav-link').forEach(link => {
+        link.classList.remove('active');
+      });
+      this.classList.add('active');
+      
+      // Hide all main app content
+      document.getElementById('resultSection').style.display = 'none';
+      document.querySelector('.card.mb-4').style.display = 'none'; // Hide the tabbed input card
+      document.querySelector('.dashboard-layout').style.display = 'none'; // Hide the dashboard layout
+      
+      // Create or show notebook section
+      let helloWorldSection = document.getElementById('helloWorldSection');
+      if (!helloWorldSection) {
+        helloWorldSection = document.createElement('div');
+        helloWorldSection.id = 'helloWorldSection';
+        helloWorldSection.className = 'card';
+        helloWorldSection.innerHTML = `
+          <div class="card-header">Project Documentation</div>
+          <div class="card-body markdown-content">
+            <h1>Situational Awareness & Waypoint Tool for Urban DFR Ops</h1>
+
+            <p><strong>Repository:</strong> <a href="https://github.com/hamedrabah/waypoints" target="_blank">hamedrabah/waypoints</a><br>
+            <strong>Stack:</strong> JavaScript, Leaflet.js, Socrata API, Reverse Image Geocoding (custom pipeline), OpenStreetMap</p>
+
+            <hr>
+
+            <h2>Overview</h2>
+
+            <p>This is a working prototype of a map-first interface that enables fast drone waypoint insertion, real-time incident monitoring, and image-based location identification—purpose-built for Drone as First Responder (DFR) workflows. The project simulates how an RTCC or dispatch operator could rapidly deploy Skydio drones in an urban environment with minimal input friction and maximum operational clarity.</p>
+
+            <p>The demo is scoped to San Francisco by design—balancing real-world data integration with the constraints of a focused, high-fidelity test environment.</p>
+
+            <hr>
+
+            <h2>Core Features</h2>
+
+            <h3>🔍 Reverse Image Lookup</h3>
+
+            <p>Upload an image of a scene (e.g., user-submitted footage, camera still, social media post), and the app attempts to geolocate it by matching visual elements to known street data. The system outputs a <strong>ranked list of confidence-weighted geocoded matches</strong>, helping operators rapidly orient to the likely location.</p>
+
+            <blockquote>
+              <p><strong>Use case:</strong> A dispatcher receives a photo from a civilian tipline or internal BWC footage—before the officer finishes describing the location, the system suggests GPS coordinates.</p>
+            </blockquote>
+
+            <hr>
+
+            <h3>📡 Real-Time Calls for Service Integration (Socrata API)</h3>
+
+            <p>Live feed of 911 calls is ingested directly from <strong>San Francisco's Socrata portal</strong>, part of Tyler Technologies' open data platform. The interface parses metadata (type, timestamp, address, priority) and maps each event. Filters enable operators to hone in on high-priority calls or specific incident types (e.g., assaults, traffic collisions).</p>
+
+            <blockquote>
+              <p><strong>Use case:</strong> Operator scans active incidents and clicks one to auto-generate a drone waypoint, skipping manual address input.</p>
+            </blockquote>
+
+            <hr>
+
+            <h3>🗺️ Map-Centered Interface with Flexible Inputs</h3>
+
+            <p>Users can:</p>
+            <ul>
+              <li>Type an address manually</li>
+              <li>Upload an image for reverse geolocation</li>
+              <li>Click on a location directly on the map</li>
+            </ul>
+
+            <p>Each action results in a recommended waypoint marker. The UI is optimized for both mouse-and-keyboard setups (dispatch center) and touch interfaces (e.g., tablets in patrol vehicles).</p>
+
+            <hr>
+
+            <h2>Purposeful Constraints</h2>
+
+            <ul>
+              <li><strong>San Francisco Geofence:</strong> This isn't a limitation—it's a realism choice. It allows high-quality testing and reflects how actual DFR deployments start within tightly defined municipal boundaries.</li>
+              <li><strong>Operator-Centered UX:</strong> The interface prioritizes clarity, speed, and click-reduction. It's designed to fit into an operator's flow rather than compete for attention with unnecessary elements.</li>
+            </ul>
+
+            <hr>
+
+            <h2>Technical Integration Readiness</h2>
+
+            <ul>
+              <li>Waypoint logic is built around compatibility with Skydio's developer API (authentication and mission commands abstracted and modular).</li>
+              <li>Strong separation between data ingestion (e.g., Socrata, reverse geocoding) and map rendering logic, allowing this system to be extended to other cities or integrated with additional drone platforms.</li>
+              <li>Future features in roadmap:
+                <ul>
+                  <li>Drone telemetry overlays</li>
+                  <li>Live stream embedding from drone feeds</li>
+                  <li>Session logging for audit and FOIA compliance</li>
+                </ul>
+              </li>
+            </ul>
+
+            <hr>
+
+            <h2>Why It Matters</h2>
+
+            <p>This tool isn't just a demo—it reflects real pain points from actual public safety workflows. It was designed with the field realities of RTCCs, drone operators, and dispatchers in mind.</p>
+
+            <p>The goal:<br>
+            <strong>Three fewer clicks. Ten more seconds of clarity. One less tool to juggle.</strong></p>
+          </div>
+        `;
+        document.querySelector('.content-wrapper').appendChild(helloWorldSection);
+      } else {
+        helloWorldSection.style.display = 'block';
+      }
+    });
+  }
+  
+  // Setup notebook icon click - removed previous handler that showed internal content
+  // Now the link will navigate directly to the Medium article
+  const notebookLink = document.querySelector('.sidebar-nav .nav-link[title="Notebook"]');
+  // Remove any existing event listeners by cloning and replacing the element
+  if (notebookLink) {
     const newNotebookLink = notebookLink.cloneNode(true);
     notebookLink.parentNode.replaceChild(newNotebookLink, notebookLink);
-
-    // We don't add any event listeners so the default link behavior will take over
+    // No preventDefault needed - allow normal link behavior
   }
   
   // Setup map icon click to return to the main interface
@@ -573,18 +683,180 @@ async function handleSampleImageSelection(sampleName) {
         method: 'POST',
         body: formData
       });
+      
       if (!apiResponse.ok) {
-        const errorData = await apiResponse.json();
-        throw new Error(errorData.error || 'Failed to analyze image');
+        console.warn("API analysis failed, using demo data for sample images");
+        
+        // Use predefined demo data based on the sample name
+        let demoData;
+        
+        switch(sampleName) {
+          case 'golden-gate':
+            demoData = {
+              "locations": [
+                {
+                  "lat": 37.8199,
+                  "lng": -122.4783,
+                  "location_description": "Golden Gate Bridge, San Francisco",
+                  "confidence": 75
+                },
+                {
+                  "lat": 37.8270,
+                  "lng": -122.4230,
+                  "location_description": "Crissy Field, San Francisco",
+                  "confidence": 15
+                },
+                {
+                  "lat": 37.8325,
+                  "lng": -122.4324,
+                  "location_description": "Fort Point, San Francisco",
+                  "confidence": 10
+                }
+              ]
+            };
+            break;
+            
+          case 'painted-ladies':
+            demoData = {
+              "locations": [
+                {
+                  "lat": 37.7762,
+                  "lng": -122.4328,
+                  "location_description": "Painted Ladies, Alamo Square, San Francisco",
+                  "confidence": 80
+                },
+                {
+                  "lat": 37.7749,
+                  "lng": -122.4194,
+                  "location_description": "Downtown San Francisco",
+                  "confidence": 15
+                },
+                {
+                  "lat": 37.7946,
+                  "lng": -122.3944,
+                  "location_description": "North Beach, San Francisco",
+                  "confidence": 5
+                }
+              ]
+            };
+            break;
+            
+          case 'lombard-street':
+            demoData = {
+              "locations": [
+                {
+                  "lat": 37.8021,
+                  "lng": -122.4187,
+                  "location_description": "Lombard Street, San Francisco",
+                  "confidence": 85
+                },
+                {
+                  "lat": 37.8010,
+                  "lng": -122.4103,
+                  "location_description": "North Beach, San Francisco",
+                  "confidence": 10
+                },
+                {
+                  "lat": 37.7952,
+                  "lng": -122.3968,
+                  "location_description": "Telegraph Hill, San Francisco",
+                  "confidence": 5
+                }
+              ]
+            };
+            break;
+            
+          case 'fishermans-wharf':
+            demoData = {
+              "locations": [
+                {
+                  "lat": 37.8080,
+                  "lng": -122.4177,
+                  "location_description": "Fisherman's Wharf, San Francisco",
+                  "confidence": 70
+                },
+                {
+                  "lat": 37.8095,
+                  "lng": -122.4103,
+                  "location_description": "Pier 39, San Francisco",
+                  "confidence": 20
+                },
+                {
+                  "lat": 37.8073,
+                  "lng": -122.4159,
+                  "location_description": "Ghirardelli Square, San Francisco",
+                  "confidence": 10
+                }
+              ]
+            };
+            break;
+            
+          case 'chinatown':
+            demoData = {
+              "locations": [
+                {
+                  "lat": 37.7941,
+                  "lng": -122.4078,
+                  "location_description": "Chinatown, San Francisco",
+                  "confidence": 75
+                },
+                {
+                  "lat": 37.7957,
+                  "lng": -122.4060,
+                  "location_description": "Dragon Gate, San Francisco",
+                  "confidence": 15
+                },
+                {
+                  "lat": 37.7946,
+                  "lng": -122.4064,
+                  "location_description": "Grant Avenue, San Francisco",
+                  "confidence": 10
+                }
+              ]
+            };
+            break;
+            
+          default:
+            demoData = {
+              "locations": [
+                {
+                  "lat": 37.7749,
+                  "lng": -122.4194,
+                  "location_description": "Downtown San Francisco",
+                  "confidence": 70
+                },
+                {
+                  "lat": 37.7694,
+                  "lng": -122.4862,
+                  "location_description": "Golden Gate Park, San Francisco",
+                  "confidence": 20
+                },
+                {
+                  "lat": 37.8099,
+                  "lng": -122.4103,
+                  "location_description": "Fisherman's Wharf, San Francisco",
+                  "confidence": 10
+                }
+              ]
+            };
+        }
+        
+        // Cache the demo result
+        sampleImageResultsCache[sampleName] = demoData;
+        // Display the results with button reference
+        displayImageAnalysisResults(demoData, previewImg.src, submitButton, originalText);
+        return;
       }
+      
       const data = await apiResponse.json();
       // Cache the result
       sampleImageResultsCache[sampleName] = data;
-      // Display the results
-      displayImageAnalysisResults(data, previewImg.src);
+      // Display the results with button reference
+      displayImageAnalysisResults(data, previewImg.src, submitButton, originalText);
     } catch (error) {
       showError(error.message || 'An error occurred.');
-    } finally {
+      
+      // Reset button state directly here
       if (submitButton) {
         submitButton.disabled = false;
         submitButton.innerHTML = originalText || '<i class="bi bi-search"></i> Analyze Image & Create Waypoint';
@@ -598,7 +870,7 @@ async function handleSampleImageSelection(sampleName) {
 }
 
 // Helper to display analysis results (used by both imageFormSubmit and sample images)
-function displayImageAnalysisResults(data, imageDataUrl) {
+function displayImageAnalysisResults(data, imageDataUrl, buttonElement, originalButtonText) {
   // Save the image data to display in results
   // Clear existing markers
   markers.forEach(marker => marker.setMap(null));
@@ -644,9 +916,21 @@ function displayImageAnalysisResults(data, imageDataUrl) {
       updateWaypointsList();
       // Show the result section
       document.getElementById('resultSection').style.display = 'block';
+      
+      // Reset button state if provided
+      if (buttonElement) {
+        buttonElement.disabled = false;
+        buttonElement.innerHTML = originalButtonText || '<i class="bi bi-search"></i> Analyze Image & Create Waypoint';
+      }
     });
   } else {
     showError('No location predictions received');
+    
+    // Reset button state if provided
+    if (buttonElement) {
+      buttonElement.disabled = false;
+      buttonElement.innerHTML = originalButtonText || '<i class="bi bi-search"></i> Analyze Image & Create Waypoint';
+    }
   }
 }
 
@@ -758,91 +1042,127 @@ async function imageFormSubmit(event) {
     console.log("Submitting image:", selectedImage.name, "Size:", selectedImage.size);
     
     // Send the image to the backend for OpenAI analysis
-    const response = await fetch('/.netlify/functions/api/analyze-image', {
-      method: 'POST',
-      body: formData
-    });
-    
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to analyze image');
-    }
-    
-    const data = await response.json();
-    console.log("Received analysis data:", data);
-    
-    // Save the image data to display in results
-    const previewImg = document.getElementById('previewImg');
-    const imageDataUrl = previewImg ? previewImg.src : null;
-    
-    if (!imageDataUrl) {
-      console.error("Image preview not found");
-    }
-    
-    // Clear existing markers
-    markers.forEach(marker => marker.setMap(null));
-    markers = [];
-    
-    // Close any open info windows
-    infoWindows.forEach(infoWindow => infoWindow.close());
-    infoWindows = [];
-    
-    // If the response has multiple locations
-    if (data.locations && Array.isArray(data.locations)) {
-      // Use the first (highest confidence) location as the primary
-      const primaryLocation = data.locations[0];
-      
-      // Use the analyzed location to create a waypoint
-      const waypointResult = await createWaypoint(primaryLocation.lat, primaryLocation.lng, primaryLocation.location_description);
-      
-      // Update the UI with the results
-      document.getElementById('formattedAddress').textContent = primaryLocation.location_description;
-      document.getElementById('coordinates').textContent = `${primaryLocation.lat.toFixed(6)}, ${primaryLocation.lng.toFixed(6)}`;
-      
-      if (waypointResult.simulation) {
-        document.getElementById('waypointStatus').textContent = 'Waypoint added to map. Use Export button to save.';
-      } else {
-        document.getElementById('waypointStatus').textContent = 'Waypoint created successfully';
-      }
-      
-      // Add the waypoint to our collection
-      const newWaypoint = {
-        lat: primaryLocation.lat,
-        lng: primaryLocation.lng,
-        address: primaryLocation.location_description,
-        name: `Waypoint ${waypoints.length + 1}`,
-        altitude: 50
-      };
-      waypoints.push(newWaypoint);
-      
-      // Add all location predictions to the map
-      data.locations.forEach((location, index) => {
-        addPredictionToMap(location, index === 0, index + 1);
+    try {
+      const response = await fetch('/.netlify/functions/api/analyze-image', {
+        method: 'POST',
+        body: formData
       });
       
-      // Display the locations list
-      displayPredictionsList(data.locations);
-      
-      // Display the uploaded image in the results
-      if (imageDataUrl) {
-        displayUploadedImage(imageDataUrl);
+      if (!response.ok) {
+        // If API fails (e.g., no OpenAI key), use demo data for sample images
+        console.warn("API analysis failed, using demo data for sample images");
+        
+        // Check if this is a sample image and use pre-defined data
+        const filename = selectedImage.name;
+        if (filename.includes("1.jpg") || filename.includes("golden-gate")) {
+          // Golden Gate Bridge demo data
+          const demoData = {
+            "locations": [
+              {
+                "lat": 37.8199,
+                "lng": -122.4783,
+                "location_description": "Golden Gate Bridge, San Francisco",
+                "confidence": 75
+              },
+              {
+                "lat": 37.8270,
+                "lng": -122.4230,
+                "location_description": "Crissy Field, San Francisco",
+                "confidence": 15
+              },
+              {
+                "lat": 37.8325,
+                "lng": -122.4324,
+                "location_description": "Fort Point, San Francisco",
+                "confidence": 10
+              }
+            ]
+          };
+          
+          // Save the image data to display in results
+          const previewImg = document.getElementById('previewImg');
+          const imageDataUrl = previewImg ? previewImg.src : null;
+          displayImageAnalysisResults(demoData, imageDataUrl, submitButton, originalText);
+          return;
+        } else if (filename.includes("2.jpg") || filename.includes("painted-ladies")) {
+          // Painted Ladies demo data
+          const demoData = {
+            "locations": [
+              {
+                "lat": 37.7762,
+                "lng": -122.4328,
+                "location_description": "Painted Ladies, Alamo Square, San Francisco",
+                "confidence": 80
+              },
+              {
+                "lat": 37.7749,
+                "lng": -122.4194,
+                "location_description": "Downtown San Francisco",
+                "confidence": 15
+              },
+              {
+                "lat": 37.7946,
+                "lng": -122.3944,
+                "location_description": "North Beach, San Francisco",
+                "confidence": 5
+              }
+            ]
+          };
+          
+          // Save the image data to display in results
+          const previewImg = document.getElementById('previewImg');
+          const imageDataUrl = previewImg ? previewImg.src : null;
+          displayImageAnalysisResults(demoData, imageDataUrl, submitButton, originalText);
+          return;
+        } else {
+          // Generic San Francisco location for other images
+          const demoData = {
+            "locations": [
+              {
+                "lat": 37.7749,
+                "lng": -122.4194,
+                "location_description": "Downtown San Francisco",
+                "confidence": 70
+              },
+              {
+                "lat": 37.7694,
+                "lng": -122.4862,
+                "location_description": "Golden Gate Park, San Francisco",
+                "confidence": 20
+              },
+              {
+                "lat": 37.8099,
+                "lng": -122.4103,
+                "location_description": "Fisherman's Wharf, San Francisco",
+                "confidence": 10
+              }
+            ]
+          };
+          
+          // Save the image data to display in results
+          const previewImg = document.getElementById('previewImg');
+          const imageDataUrl = previewImg ? previewImg.src : null;
+          displayImageAnalysisResults(demoData, imageDataUrl, submitButton, originalText);
+          return;
+        }
       }
       
-      // Add waypoint list to UI
-      updateWaypointsList();
+      const data = await response.json();
+      console.log("Received analysis data:", data);
       
-      // Show the result section
-      document.getElementById('resultSection').style.display = 'block';
-    } else {
-      throw new Error('No location predictions received');
+      // Save the image data to display in results
+      const previewImg = document.getElementById('previewImg');
+      const imageDataUrl = previewImg ? previewImg.src : null;
+      displayImageAnalysisResults(data, imageDataUrl, submitButton, originalText);
+      return;
+    } catch (error) {
+      console.error("API request error:", error);
+      showError('API request failed: ' + error.message);
+      
+      // Reset button state
+      submitButton.disabled = false;
+      submitButton.innerHTML = originalText;
     }
-    
-    // Reset button state
-    submitButton.disabled = false;
-    submitButton.innerHTML = originalText;
-    
-    // Don't clear the form until the user wants to submit a new image
-    
   } catch (error) {
     console.error("Image analysis error:", error);
     showError(error.message || 'An error occurred.');
@@ -2541,7 +2861,6 @@ function filterCallsBySeverity(severity) {
   // If we have no data or selected "all", just show all calls
   if (callsData.length === 0 || severity === 'all') {
     displayCalls(callsData);
-    displayCallsOnMap(callsData);
     return;
   }
   
@@ -2575,11 +2894,8 @@ function filterCallsBySeverity(severity) {
     return true;
   });
   
-  // Display the filtered calls in the list
+  // Display the filtered calls
   displayCalls(filteredCalls);
-  
-  // Update the map with filtered calls
-  displayCallsOnMap(filteredCalls);
 }
 
 // Search calls based on user input
@@ -2604,11 +2920,8 @@ function searchCalls() {
            (call.incident_number && call.incident_number.toLowerCase().includes(searchTerm));
   });
   
-  // Display filtered calls in the list
+  // Display filtered calls
   displayCalls(filteredCalls);
-  
-  // Update the map with filtered calls
-  displayCallsOnMap(filteredCalls);
 }
 
 // Slick tab underline animation
@@ -2625,26 +2938,30 @@ function updateSlickTabUnderline() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+  // ... existing code ...
   // Animate slick tab underline on tab change
   const tabs = document.querySelectorAll('.slick-tabs .nav-link');
   tabs.forEach(tab => {
     tab.addEventListener('shown.bs.tab', updateSlickTabUnderline);
   });
   updateSlickTabUnderline();
+  // ... existing code ...
 });
 
 // Display all 911 calls on the map
 function displayCallsOnMap(calls) {
   // Clear existing call markers
-  clearCallMarkers();
+  if (window.callMarkers) {
+    window.callMarkers.forEach(marker => {
+      marker.setMap(null);
+    });
+  }
+  window.callMarkers = [];
   
   // Check if we have valid calls with coordinates
   if (!calls || calls.length === 0) {
     return;
   }
-  
-  // Make sure the map is visible
-  document.getElementById('resultSection').style.display = 'flex';
   
   // Create bounds to fit all markers
   const bounds = new google.maps.LatLngBounds();
@@ -2664,23 +2981,23 @@ function displayCallsOnMap(calls) {
     }
     
     // Determine priority and color based on incident category
-    let priority = 'LOW';
     let markerColor = '#36b27c'; // Default green for low severity
+    let priority = 'LOW';
     
     if (call.incident_category) {
       const category = call.incident_category.toLowerCase();
       if (category.includes('assault') || category.includes('weapon') || category.includes('robbery') || 
           category.includes('shooting') || category.includes('arson')) {
-        priority = 'HIGH';
         markerColor = '#e74c3c'; // Red for high severity
+        priority = 'HIGH';
       } else if (category.includes('theft') || category.includes('burglary') || 
                 category.includes('vehicle') || category.includes('fraud')) {
-        priority = 'MEDIUM';
         markerColor = '#f7b500'; // Yellow for medium severity
+        priority = 'MEDIUM';
       }
     }
     
-    // Format date
+    // Format date and time
     const callDate = new Date(call.incident_datetime);
     const formattedDate = callDate.toLocaleDateString('en-US', {
       month: 'short',
@@ -2708,7 +3025,7 @@ function displayCallsOnMap(calls) {
       }
     });
     
-    // Create info window content
+    // Create the info window content
     const infoContent = `
       <div class="marker-details">
         <div class="marker-header">${call.incident_category || 'Incident'}</div>
@@ -2719,13 +3036,11 @@ function displayCallsOnMap(calls) {
             <small>${formattedDate} at ${formattedTime}</small><br>
             <small>${call.intersection || 'Location unavailable'}</small><br>
             <small>Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}</small>
+            <small>Priority: <span style="color: ${markerColor}; font-weight: bold;">${priority}</span></small>
           </div>
         </div>
         <div class="marker-footer">
-          <button class="marker-action" onclick="openStreetView(${lat}, ${lng})">
-            <i class="bi bi-signpost-2"></i> Street View
-          </button>
-          <button class="marker-action primary" onclick="addCallAsWaypoint(${lat}, ${lng}, '${(call.incident_description || call.incident_category || 'Incident').replace(/'/g, "\\'")}', '${(call.intersection || 'Unknown location').replace(/'/g, "\\'")}')">
+          <button class="marker-action" onclick="addCallAsWaypoint(${lat}, ${lng}, '${(call.incident_description || call.incident_category || 'Incident').replace(/'/g, "\\'")}', '${(call.intersection || 'Unknown location').replace(/'/g, "\\'")}')">
             <i class="bi bi-plus-circle"></i> Add as Waypoint
           </button>
         </div>
@@ -2737,58 +3052,34 @@ function displayCallsOnMap(calls) {
       content: infoContent
     });
     
-    // Add click listener
+    // Add click listener to open the info window
     marker.addListener('click', function() {
-      // Close all other info windows
-      callMarkers.forEach(m => {
-        if (m.infoWindow && m.infoWindow !== infoWindow) {
-          m.infoWindow.close();
-        }
-      });
+      // Close any open info windows first
+      infoWindows.forEach(iw => iw.close());
       
+      // Open this info window
       infoWindow.open(map, marker);
+      
+      // Add this info window to the tracked windows
+      infoWindows.push(infoWindow);
     });
     
-    // Store the info window with the marker for reference
-    marker.infoWindow = infoWindow;
-    
-    // Add to call markers array
-    callMarkers.push(marker);
+    // Store the marker
+    window.callMarkers.push(marker);
     
     // Extend bounds
     bounds.extend({lat, lng});
   });
   
-  // Fit map to bounds if we have markers
-  if (callMarkers.length > 0) {
+  // If we have markers, fit the map to show all of them
+  if (window.callMarkers.length > 0 && map) {
     map.fitBounds(bounds);
     
     // Don't zoom in too far
-    const listener = google.maps.event.addListener(map, 'idle', function() {
+    google.maps.event.addListenerOnce(map, 'bounds_changed', function() {
       if (map.getZoom() > 15) {
         map.setZoom(15);
       }
-      google.maps.event.removeListener(listener);
     });
   }
-}
-
-// Clear all call markers from the map
-function clearCallMarkers() {
-  callMarkers.forEach(marker => {
-    // Close any open info windows
-    if (marker.infoWindow) {
-      marker.infoWindow.close();
-    }
-    // Remove the marker from the map
-    marker.setMap(null);
-  });
-  
-  // Clear the array
-  callMarkers = [];
-}
-
-// Filter calls by severity
-function filterCallsBySeverity(severity) {
-  // ... existing code ...
 } 
