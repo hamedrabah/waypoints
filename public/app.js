@@ -1,0 +1,1330 @@
+// Global variables
+let map;
+let markers = []; // Change from single marker to array of markers
+let waypoints = []; // Store multiple waypoints
+let geocodedLat;
+let geocodedLng;
+let selectedImage = null;
+let panorama; // Street View panorama
+let infoWindows = []; // Keep track of info windows
+
+// Add a DOM ready function to ensure elements exist before accessing them
+function initEventListeners() {
+  // Set up the file uploader
+  const uploaderContainer = document.getElementById('uploaderContainer');
+  const imageUpload = document.getElementById('imageUpload');
+  
+  if (uploaderContainer && imageUpload) {
+    // Click on the container to trigger file input
+    uploaderContainer.addEventListener('click', function() {
+      imageUpload.click();
+    });
+    
+    // Handle file selection change
+    imageUpload.addEventListener('change', function(event) {
+      handleImageSelection(event);
+    });
+    
+    // Handle drag and drop
+    uploaderContainer.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      uploaderContainer.classList.add('uploader-container-active');
+    });
+    
+    uploaderContainer.addEventListener('dragleave', function() {
+      uploaderContainer.classList.remove('uploader-container-active');
+    });
+    
+    uploaderContainer.addEventListener('drop', function(e) {
+      e.preventDefault();
+      uploaderContainer.classList.remove('uploader-container-active');
+      
+      if (e.dataTransfer.files.length) {
+        imageUpload.files = e.dataTransfer.files;
+        handleImageSelection({ target: imageUpload });
+      }
+    });
+  }
+  
+  // Set up image removal button
+  const removeImageBtn = document.getElementById('removeImage');
+  if (removeImageBtn) {
+    removeImageBtn.addEventListener('click', function() {
+      resetImageUpload();
+    });
+  }
+  
+  // Set up Close Street View button
+  const closeStreetViewBtn = document.getElementById('closeStreetView');
+  if (closeStreetViewBtn) {
+    closeStreetViewBtn.addEventListener('click', function() {
+      document.getElementById('street-view-container').style.display = 'none';
+    });
+  }
+  
+  // Setup header buttons
+  setupHeaderButtons();
+  
+  // Setup sidebar map icon click
+  const sidebarMapLink = document.querySelector('.sidebar-nav .nav-link[title="Map"]');
+  if (sidebarMapLink) {
+    sidebarMapLink.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (window.map) {
+        window.map.setCenter({ lat: 37.7749, lng: -122.4194 });
+        window.map.setZoom(13);
+      }
+    });
+  }
+  
+  // Setup export waypoints button
+  const exportWaypointsBtn = document.getElementById('exportWaypointsBtn');
+  if (exportWaypointsBtn) {
+    exportWaypointsBtn.addEventListener('click', exportWaypoints);
+  }
+  
+  // Setup address form submission
+  const addressForm = document.getElementById('addressForm');
+  if (addressForm) {
+    addressForm.addEventListener('submit', addressFormSubmit);
+  }
+  
+  // Setup image form submission
+  const imageForm = document.getElementById('imageForm');
+  if (imageForm) {
+    imageForm.addEventListener('submit', imageFormSubmit);
+  }
+}
+
+// Initialize the map (callback for Google Maps API)
+function initMap() {
+  // Default center (can be anywhere, will update when an address is entered)
+  const defaultCenter = { lat: 37.7749, lng: -122.4194 }; // San Francisco
+  
+  // Check if map element exists
+  let mapElement = document.getElementById('map');
+  
+  // If map element doesn't exist or isn't visible, try to show the result section
+  if (!mapElement || mapElement.offsetParent === null) {
+    // Try to show the result section which contains the map
+    const resultSection = document.getElementById('resultSection');
+    if (resultSection) {
+      resultSection.style.display = 'block';
+      // Try to get the map element again after showing the section
+      mapElement = document.getElementById('map');
+    }
+    
+    // If map still doesn't exist, log an error and return
+    if (!mapElement) {
+      console.error('Map element not found');
+      return;
+    }
+  }
+  
+  // Dark mode map style to match Skydio UI
+  const darkMapStyle = [
+    { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
+    { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
+    { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
+    {
+      featureType: "administrative.locality",
+      elementType: "labels.text.fill",
+      stylers: [{ color: "#d59563" }],
+    },
+    {
+      featureType: "poi",
+      elementType: "labels.text.fill",
+      stylers: [{ color: "#d59563" }],
+    },
+    {
+      featureType: "poi.park",
+      elementType: "geometry",
+      stylers: [{ color: "#263c3f" }],
+    },
+    {
+      featureType: "poi.park",
+      elementType: "labels.text.fill",
+      stylers: [{ color: "#6b9a76" }],
+    },
+    {
+      featureType: "road",
+      elementType: "geometry",
+      stylers: [{ color: "#38414e" }],
+    },
+    {
+      featureType: "road",
+      elementType: "geometry.stroke",
+      stylers: [{ color: "#212a37" }],
+    },
+    {
+      featureType: "road",
+      elementType: "labels.text.fill",
+      stylers: [{ color: "#9ca5b3" }],
+    },
+    {
+      featureType: "road.highway",
+      elementType: "geometry",
+      stylers: [{ color: "#746855" }],
+    },
+    {
+      featureType: "road.highway",
+      elementType: "geometry.stroke",
+      stylers: [{ color: "#1f2835" }],
+    },
+    {
+      featureType: "road.highway",
+      elementType: "labels.text.fill",
+      stylers: [{ color: "#f3d19c" }],
+    },
+    {
+      featureType: "transit",
+      elementType: "geometry",
+      stylers: [{ color: "#2f3948" }],
+    },
+    {
+      featureType: "transit.station",
+      elementType: "labels.text.fill",
+      stylers: [{ color: "#d59563" }],
+    },
+    {
+      featureType: "water",
+      elementType: "geometry",
+      stylers: [{ color: "#17263c" }],
+    },
+    {
+      featureType: "water",
+      elementType: "labels.text.fill",
+      stylers: [{ color: "#515c6d" }],
+    },
+    {
+      featureType: "water",
+      elementType: "labels.text.stroke",
+      stylers: [{ color: "#17263c" }],
+    },
+  ];
+  
+  map = new google.maps.Map(mapElement, {
+    zoom: 13,
+    center: defaultCenter,
+    mapTypeControl: true,
+    streetViewControl: true,
+    fullscreenControl: true,
+    mapTypeControlOptions: {
+      style: google.maps.MapTypeControlStyle.DROPDOWN_MENU
+    },
+    styles: darkMapStyle
+  });
+  
+  // Add a button to clear all waypoints
+  const clearButton = document.createElement('button');
+  clearButton.textContent = 'Clear All Waypoints';
+  clearButton.className = 'custom-map-button';
+  clearButton.addEventListener('click', clearAllWaypoints);
+  
+  // Add export button for waypoints
+  const exportButton = document.createElement('button');
+  exportButton.textContent = 'Export Waypoints';
+  exportButton.className = 'custom-map-button';
+  exportButton.addEventListener('click', exportWaypoints);
+  
+  map.controls[google.maps.ControlPosition.TOP_RIGHT].push(clearButton);
+  map.controls[google.maps.ControlPosition.TOP_RIGHT].push(exportButton);
+
+  // Add Google Places Autocomplete to the address input
+  const addressInput = document.getElementById('address');
+  if (addressInput && google.maps.places) {
+    const autocomplete = new google.maps.places.Autocomplete(addressInput, {
+      // No 'types' restriction, allow all place types (addresses, businesses, POIs)
+      fields: ['formatted_address', 'geometry', 'name', 'place_id']
+    });
+    autocomplete.addListener('place_changed', function() {
+      const place = autocomplete.getPlace();
+      if (place && (place.formatted_address || place.name)) {
+        // Prefer formatted_address, fallback to name
+        addressInput.value = place.formatted_address || place.name;
+      }
+    });
+  }
+
+  // Initialize event listeners
+  initEventListeners();
+}
+
+// Setup interactive elements in the header
+function setupHeaderButtons() {
+  const headerButtons = document.querySelectorAll('.header-btn');
+  
+  headerButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      // Toggle active state
+      headerButtons.forEach(btn => btn.classList.remove('active'));
+      this.classList.add('active');
+      
+      // Handle button actions based on text
+      const buttonText = this.textContent.trim();
+      
+      if (buttonText.includes('Map')) {
+        // Make sure the result section is visible first
+        const resultSection = document.getElementById('resultSection');
+        if (resultSection) {
+          resultSection.style.display = 'block';
+        }
+        
+        // Check if map is initialized
+        if (window.google && window.google.maps && window.map) {
+          // Center map on San Francisco
+          window.map.setCenter({ lat: 37.7749, lng: -122.4194 });
+          window.map.setZoom(13);
+        } else {
+          console.error('Google Maps not loaded or map not initialized');
+          // Try to initialize map if the element exists
+          const mapElement = document.getElementById('map');
+          if (mapElement && typeof initMap === 'function') {
+            console.log('Attempting to initialize map');
+            initMap();
+          } else {
+            alert('Map view not available. Please check if Google Maps API is loaded.');
+          }
+        }
+      } else if (buttonText.includes('Split')) {
+        // Mock split view functionality
+        alert('Split view would show map and camera feed side by side');
+      } else if (buttonText.includes('Video')) {
+        // Mock video view functionality
+        alert('Video view would show live drone camera feed');
+      }
+    });
+  });
+}
+
+// Handle image selection for upload
+function handleImageSelection(event) {
+  selectedImage = event.target.files[0];
+  
+  if (selectedImage) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const previewImg = document.getElementById('previewImg');
+      previewImg.src = e.target.result;
+      document.getElementById('imagePreview').style.display = 'block';
+      document.getElementById('uploaderContainer').style.display = 'none';
+    };
+    reader.readAsDataURL(selectedImage);
+  } else {
+    resetImageUpload();
+  }
+}
+
+// Reset the image upload
+function resetImageUpload() {
+  selectedImage = null;
+  document.getElementById('imageUpload').value = '';
+  document.getElementById('imagePreview').style.display = 'none';
+  document.getElementById('uploaderContainer').style.display = 'block';
+}
+
+// Address form submit handler
+async function addressFormSubmit(event) {
+  event.preventDefault();
+  
+  // Get the address from the form
+  const address = document.getElementById('address').value.trim();
+  
+  if (!address) {
+    showError('Please enter an address');
+    return;
+  }
+  
+  try {
+    // Clear previous error (if any)
+    hideError();
+    
+    // Show loading state
+    const submitButton = this.querySelector('button[type="submit"]');
+    const originalText = submitButton.innerHTML;
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+    
+    // Step 1: Geocode the address
+    const geocodeResult = await geocodeAddress(address);
+    
+    // Step 2: Send coordinates to Skydio API to create a waypoint (just for status reporting)
+    const waypointResult = await createWaypoint(geocodeResult.lat, geocodeResult.lng, geocodeResult.address);
+    
+    // Update the UI with the results
+    document.getElementById('formattedAddress').textContent = geocodeResult.address;
+    document.getElementById('coordinates').textContent = `${geocodeResult.lat.toFixed(6)}, ${geocodeResult.lng.toFixed(6)}`;
+    
+    if (waypointResult.simulation) {
+      document.getElementById('waypointStatus').textContent = 'Waypoint added to map. Use Export button to save.';
+    } else {
+      document.getElementById('waypointStatus').textContent = 'Waypoint created successfully';
+    }
+    
+    // Add the waypoint to our collection
+    const newWaypoint = {
+      lat: geocodeResult.lat,
+      lng: geocodeResult.lng,
+      address: geocodeResult.address,
+      name: `Waypoint ${waypoints.length + 1}`,
+      altitude: 50
+    };
+    waypoints.push(newWaypoint);
+    
+    // Update the map and UI
+    addWaypointToMap(newWaypoint);
+    updateWaypointsList();
+    
+    // Show the result section
+    document.getElementById('resultSection').style.display = 'block';
+    
+    // Reset button state
+    submitButton.disabled = false;
+    submitButton.innerHTML = originalText;
+    
+    // Clear the address input for the next waypoint
+    document.getElementById('address').value = '';
+    
+  } catch (error) {
+    showError(error.message || 'An error occurred.');
+    
+    // Reset button state
+    const submitButton = this.querySelector('button[type="submit"]');
+    submitButton.disabled = false;
+    submitButton.innerHTML = '<i class="bi bi-geo-alt"></i> Create Waypoint';
+  }
+}
+
+// Image form submit handler
+async function imageFormSubmit(event) {
+  event.preventDefault();
+  
+  // Get the city and image
+  const city = document.getElementById('city').value.trim();
+  
+  if (!city) {
+    showError('Please enter a city name');
+    return;
+  }
+  
+  if (!selectedImage) {
+    showError('Please upload an image');
+    return;
+  }
+  
+  try {
+    // Clear previous error (if any)
+    hideError();
+    
+    // Show loading state
+    const submitButton = this.querySelector('button[type="submit"]');
+    const originalText = submitButton.innerHTML;
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Analyzing image...';
+    
+    // Create a FormData object and append the image and city
+    const formData = new FormData();
+    formData.append('image', selectedImage);
+    formData.append('city', city);
+    
+    // Send the image to the backend for OpenAI analysis
+    const response = await fetch('/api/analyze-image', {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to analyze image');
+    }
+    
+    const data = await response.json();
+    
+    // Save the image data to display in results
+    const imageDataUrl = document.getElementById('previewImg').src;
+    
+    // Clear existing markers
+    markers.forEach(marker => marker.setMap(null));
+    markers = [];
+    
+    // Close any open info windows
+    infoWindows.forEach(infoWindow => infoWindow.close());
+    infoWindows = [];
+    
+    // If the response has multiple locations
+    if (data.locations && Array.isArray(data.locations)) {
+      // Use the first (highest confidence) location as the primary
+      const primaryLocation = data.locations[0];
+      
+      // Use the analyzed location to create a waypoint
+      const waypointResult = await createWaypoint(primaryLocation.lat, primaryLocation.lng, primaryLocation.location_description);
+      
+      // Update the UI with the results
+      document.getElementById('formattedAddress').textContent = primaryLocation.location_description;
+      document.getElementById('coordinates').textContent = `${primaryLocation.lat.toFixed(6)}, ${primaryLocation.lng.toFixed(6)}`;
+      
+      if (waypointResult.simulation) {
+        document.getElementById('waypointStatus').textContent = 'Waypoint added to map. Use Export button to save.';
+      } else {
+        document.getElementById('waypointStatus').textContent = 'Waypoint created successfully';
+      }
+      
+      // Add the waypoint to our collection
+      const newWaypoint = {
+        lat: primaryLocation.lat,
+        lng: primaryLocation.lng,
+        address: primaryLocation.location_description,
+        name: `Waypoint ${waypoints.length + 1}`,
+        altitude: 50
+      };
+      waypoints.push(newWaypoint);
+      
+      // Add all location predictions to the map
+      data.locations.forEach((location, index) => {
+        addPredictionToMap(location, index === 0, index + 1);
+      });
+      
+      // Display the locations list
+      displayPredictionsList(data.locations);
+      
+      // Display the uploaded image in the results
+      displayUploadedImage(imageDataUrl);
+      
+      // Add waypoint list to UI
+      updateWaypointsList();
+      
+      // Show the result section
+      document.getElementById('resultSection').style.display = 'block';
+    } else {
+      throw new Error('No location predictions received');
+    }
+    
+    // Reset button state
+    submitButton.disabled = false;
+    submitButton.innerHTML = originalText;
+    
+    // Don't clear the form until the user wants to submit a new image
+    
+  } catch (error) {
+    showError(error.message || 'An error occurred.');
+    
+    // Reset button state
+    const submitButton = this.querySelector('button[type="submit"]');
+    submitButton.disabled = false;
+    submitButton.innerHTML = '<i class="bi bi-search"></i> Analyze Image & Create Waypoint';
+  }
+}
+
+// Update the waypoints list
+function updateWaypointsList() {
+  const waypointsContainer = document.getElementById('waypointsList');
+  
+  // Clear the container
+  waypointsContainer.innerHTML = '';
+  
+  // Create waypoint items
+  waypoints.forEach((waypoint, index) => {
+    const waypointElement = document.createElement('div');
+    waypointElement.className = 'incident-item';
+    
+    const iconColor = index === 0 ? 'var(--skydio-accent)' : 'var(--skydio-success)';
+    
+    waypointElement.innerHTML = `
+      <div class="incident-icon" style="background-color: ${iconColor}">
+        <i class="bi bi-geo-alt-fill"></i>
+      </div>
+      <div class="incident-details">
+        <div class="incident-title">${waypoint.name}</div>
+        <div class="incident-meta">${waypoint.address.substring(0, 50)}${waypoint.address.length > 50 ? '...' : ''}</div>
+      </div>
+      <div class="incident-time">
+        <button class="remove-waypoint" data-index="${index}">
+          <i class="bi bi-x"></i>
+        </button>
+      </div>
+    `;
+    
+    waypointsContainer.appendChild(waypointElement);
+  });
+  
+  // Add event listeners to remove buttons
+  document.querySelectorAll('.remove-waypoint').forEach(button => {
+    button.addEventListener('click', function() {
+      const index = parseInt(this.getAttribute('data-index'));
+      removeWaypoint(index);
+    });
+  });
+  
+  // Add click handlers for the waypoint items
+  document.querySelectorAll('.incident-item').forEach((item, index) => {
+    item.addEventListener('click', function(event) {
+      // Don't trigger if the remove button was clicked
+      if (event.target.closest('.remove-waypoint')) {
+        return;
+      }
+      
+      // Center map on this waypoint
+      const waypoint = waypoints[index];
+      map.setCenter({lat: waypoint.lat, lng: waypoint.lng});
+      map.setZoom(17);
+      
+      // Trigger click on corresponding marker
+      google.maps.event.trigger(markers[index], 'click');
+    });
+  });
+}
+
+// Add a prediction marker to the map
+function addPredictionToMap(prediction, isPrimary, index) {
+  const position = {
+    lat: parseFloat(prediction.lat),
+    lng: parseFloat(prediction.lng)
+  };
+  
+  // Center the map on the primary location
+  if (isPrimary) {
+    map.setCenter(position);
+    map.setZoom(15);
+  }
+  
+  // Create a custom SVG marker
+  const markerColor = isPrimary ? '#f7b500' : '#4da3ff';
+  const svgMarker = {
+    path: 'M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12,2Z',
+    fillColor: markerColor,
+    fillOpacity: 1,
+    strokeWeight: 1,
+    strokeColor: '#FFFFFF',
+    rotation: 0,
+    scale: 2,
+    anchor: new google.maps.Point(12, 22),
+    labelOrigin: new google.maps.Point(12, 9)
+  };
+  
+  // Create a new marker
+  const marker = new google.maps.Marker({
+    position: position,
+    map: map,
+    title: prediction.location_description,
+    animation: google.maps.Animation.DROP,
+    icon: svgMarker,
+    label: {
+      text: String(index),
+      color: '#FFFFFF',
+      fontSize: '11px',
+      fontWeight: 'bold'
+    }
+  });
+  
+  // Add the marker to our array
+  markers.push(marker);
+  
+  // Calculate confidence percentage
+  const confidencePercent = (prediction.confidence * 100).toFixed(1);
+  
+  // Create marker popup content
+  const infoWindowContent = `
+    <div class="marker-details">
+      <div class="marker-header">${isPrimary ? 'Primary Location' : 'Alternative Location'} #${index}</div>
+      <div class="marker-content">
+        <strong>${prediction.location_description}</strong><br>
+        <div style="margin: 5px 0">
+          <small>Confidence: ${confidencePercent}%</small><br>
+          <small>${position.lat.toFixed(6)}, ${position.lng.toFixed(6)}</small>
+        </div>
+      </div>
+      <div class="marker-footer">
+        <button class="marker-action" onclick="openStreetView(${position.lat}, ${position.lng})">
+          <i class="bi bi-signpost-2"></i> Street View
+        </button>
+        <button class="marker-action primary" onclick="selectWaypoint(${position.lat}, ${position.lng}, '${prediction.location_description.replace(/'/g, "\\'")}')">
+          <i class="bi bi-geo-alt"></i> Select
+        </button>
+      </div>
+    </div>
+  `;
+  
+  // Add an info window
+  const infoWindow = new google.maps.InfoWindow({
+    content: infoWindowContent
+  });
+  
+  infoWindows.push(infoWindow);
+  
+  marker.addListener('click', function() {
+    // Close all other info windows
+    infoWindows.forEach(iw => iw !== infoWindow && iw.close());
+    
+    infoWindow.open(map, marker);
+  });
+  
+  // Initially open the info window for primary location
+  if (isPrimary) {
+    infoWindow.open(map, marker);
+  }
+}
+
+// Open Street View at the specified location
+function openStreetView(lat, lng) {
+  const position = {lat, lng};
+  
+  // Get the image container
+  const uploadedImageContainer = document.getElementById('uploadedImageContainer');
+  if (!uploadedImageContainer) {
+    console.error('Image container not found');
+    return;
+  }
+  
+  // Check if street view panel exists, if not create it
+  let streetViewPanel = document.getElementById('street-view-panel');
+  if (!streetViewPanel) {
+    // Create the street view panel
+    streetViewPanel = document.createElement('div');
+    streetViewPanel.id = 'street-view-panel';
+    streetViewPanel.style.height = '400px';
+    streetViewPanel.style.width = '100%';
+    
+    // Add a title
+    const title = document.createElement('div');
+    title.className = 'image-title';
+    title.textContent = 'Street View';
+    streetViewPanel.appendChild(title);
+    
+    // Create the street view container
+    const panoramaDiv = document.createElement('div');
+    panoramaDiv.id = 'street-view';
+    panoramaDiv.style.height = '100%';
+    panoramaDiv.style.width = '100%';
+    streetViewPanel.appendChild(panoramaDiv);
+    
+    // Add to the image container
+    uploadedImageContainer.innerHTML = ''; // Clear existing content
+    uploadedImageContainer.appendChild(streetViewPanel);
+  } else {
+    // Show the street view panel
+    streetViewPanel.style.display = 'block';
+    
+    // Check if street view div exists
+    let panoramaDiv = document.getElementById('street-view');
+    if (!panoramaDiv) {
+      // Create the street view container
+      panoramaDiv = document.createElement('div');
+      panoramaDiv.id = 'street-view';
+      panoramaDiv.style.height = '100%';
+      panoramaDiv.style.width = '100%';
+      streetViewPanel.appendChild(panoramaDiv);
+    }
+    
+    // Hide any existing result image
+    const existingResultImage = document.getElementById('resultImage');
+    if (existingResultImage) {
+      existingResultImage.style.display = 'none';
+    }
+  }
+  
+  // Clear the container except for the street view panel
+  const children = Array.from(uploadedImageContainer.children);
+  children.forEach(child => {
+    if (child.id !== 'street-view-panel') {
+      uploadedImageContainer.removeChild(child);
+    }
+  });
+  
+  // Initialize the street view panorama
+  panorama = new google.maps.StreetViewPanorama(
+    document.getElementById('street-view'),
+    {
+      position: position,
+      pov: {
+        heading: 34,
+        pitch: 10
+      }
+    }
+  );
+  
+  // Check if Street View is available at this location
+  const streetViewService = new google.maps.StreetViewService();
+  streetViewService.getPanorama({ location: position, radius: 50 }, (data, status) => {
+    if (status === 'OK') {
+      // Street view exists, update the POV
+      panorama.setPov({
+        heading: google.maps.geometry.spherical.computeHeading(
+          data.location.latLng, 
+          new google.maps.LatLng(position)
+        ),
+        pitch: 0
+      });
+    } else {
+      // No street view available
+      console.error('Street View is not available at this location');
+      
+      // Display an error message in the image container
+      uploadedImageContainer.innerHTML = `
+        <div class="image-title">Street View</div>
+        <div class="no-street-view-message">
+          <i class="bi bi-exclamation-triangle"></i>
+          <p>Street View is not available at this location.</p>
+        </div>
+      `;
+    }
+  });
+}
+
+// Select a waypoint from a marker
+function selectWaypoint(lat, lng, location) {
+  // Create a waypoint from the selected prediction
+  const newWaypoint = {
+    lat: lat,
+    lng: lng,
+    address: location,
+    name: `Waypoint ${waypoints.length + 1}`,
+    altitude: 50
+  };
+  
+  // Add to waypoints array
+  waypoints.push(newWaypoint);
+  
+  // Update the waypoints list
+  updateWaypointsList();
+  
+  // Show success message
+  alert(`Added "${location}" to waypoints list`);
+}
+
+// Display the list of location predictions
+function displayPredictionsList(locations) {
+  // Prepare the container
+  const predictionsContainer = document.getElementById('predictionsContainer');
+  predictionsContainer.innerHTML = '';
+  
+  // Create the predictions container
+  const predictionsSection = document.createElement('div');
+  predictionsSection.className = 'predictions-container';
+  
+  // Add a header
+  const header = document.createElement('div');
+  header.className = 'predictions-header';
+  header.innerHTML = `<i class="bi bi-geo"></i> Probable Locations (${locations.length})`;
+  predictionsSection.appendChild(header);
+  
+  // Add the predictions
+  locations.forEach((location, index) => {
+    const predictionItem = document.createElement('div');
+    predictionItem.className = index === 0 ? 'prediction-item primary-prediction' : 'prediction-item';
+    
+    // Format confidence as percentage
+    const confidence = (location.confidence * 100).toFixed(1);
+    const confidenceClass = confidence > 80 ? 'badge-success' : (confidence > 50 ? 'badge-primary' : 'badge-warning');
+    
+    predictionItem.innerHTML = `
+      <div class="prediction-content d-flex align-items-center">
+        <span class="badge ${confidenceClass}">${index + 1}</span>
+        <div class="prediction-details">
+          <div class="prediction-location">${location.location_description}</div>
+          <div class="prediction-meta">
+            <div class="prediction-confidence">Confidence: ${confidence}%</div>
+            <div class="prediction-coordinates">${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}</div>
+          </div>
+        </div>
+      </div>
+      <div class="prediction-actions">
+        <button class="btn btn-sm btn-outline-primary zoom-to-location" data-index="${index}">
+          <i class="bi bi-geo-alt"></i>
+        </button>
+      </div>
+    `;
+    
+    predictionsSection.appendChild(predictionItem);
+  });
+  
+  // Add to the container
+  predictionsContainer.appendChild(predictionsSection);
+  
+  // Add click handlers for the items and view buttons
+  document.querySelectorAll('.prediction-item').forEach((item, index) => {
+    // Click on the whole item
+    item.addEventListener('click', function(event) {
+      // Don't trigger if the button was clicked 
+      if (event.target.closest('.btn')) {
+        return;
+      }
+      zoomToLocation(index);
+    });
+  });
+  
+  // Specific button clicks
+  document.querySelectorAll('.zoom-to-location').forEach(button => {
+    button.addEventListener('click', function() {
+      const index = parseInt(this.getAttribute('data-index'));
+      zoomToLocation(index);
+    });
+  });
+}
+
+// Zoom to a specific prediction location
+function zoomToLocation(index) {
+  const marker = markers[index];
+  
+  // Focus on this location with animation
+  map.panTo(marker.getPosition());
+  map.setZoom(17);
+  
+  // Trigger a click on the marker to open the info window
+  google.maps.event.trigger(marker, 'click');
+  
+  // Highlight the prediction in the list
+  const items = document.querySelectorAll('.prediction-item');
+  items.forEach(item => item.classList.remove('highlighted'));
+  items[index].classList.add('highlighted');
+}
+
+// Display the uploaded image in the results
+function displayUploadedImage(imageDataUrl) {
+  // Find or create the image container
+  const imageContainer = document.getElementById('uploadedImageContainer');
+  
+  // Hide the street view panel if it exists
+  const streetViewPanel = document.getElementById('street-view-panel');
+  if (streetViewPanel) {
+    streetViewPanel.style.display = 'none';
+  }
+  
+  // Clear the container
+  imageContainer.innerHTML = '';
+  
+  // Create a title
+  const title = document.createElement('div');
+  title.className = 'image-title';
+  title.textContent = 'Uploaded Image';
+  imageContainer.appendChild(title);
+  
+  // Create the image element
+  const img = document.createElement('img');
+  img.id = 'resultImage';
+  img.className = 'img-fluid';
+  img.src = imageDataUrl;
+  imageContainer.appendChild(img);
+}
+
+// Geocode the address using our backend API
+async function geocodeAddress(address) {
+  try {
+    const response = await fetch('/api/geocode', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ address })
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to geocode address');
+    }
+    
+    const data = await response.json();
+    geocodedLat = data.lat;
+    geocodedLng = data.lng;
+    
+    return {
+      address: data.address,
+      lat: data.lat,
+      lng: data.lng
+    };
+  } catch (error) {
+    console.error('Geocoding error:', error);
+    throw new Error(error.message || 'Failed to geocode address');
+  }
+}
+
+// Create a waypoint using our backend API
+async function createWaypoint(lat, lng, address) {
+  try {
+    const response = await fetch('/api/waypoint', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        lat,
+        lng,
+        address
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok && !data.simulation) {
+      throw new Error(data.error || 'Failed to create waypoint');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Waypoint creation error:', error);
+    throw new Error(error.message || 'Failed to create waypoint');
+  }
+}
+
+// Add a waypoint to the map
+function addWaypointToMap(waypoint) {
+  const position = {
+    lat: parseFloat(waypoint.lat),
+    lng: parseFloat(waypoint.lng)
+  };
+  
+  // Center the map on the location
+  map.setCenter(position);
+  map.setZoom(15);
+  
+  // Create SVG marker for the waypoint
+  const svgMarker = {
+    path: 'M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12,2Z',
+    fillColor: '#f7b500',
+    fillOpacity: 1,
+    strokeWeight: 1,
+    strokeColor: '#FFFFFF',
+    rotation: 0,
+    scale: 2,
+    anchor: new google.maps.Point(12, 22),
+    labelOrigin: new google.maps.Point(12, 9)
+  };
+  
+  // Create a new marker
+  const marker = new google.maps.Marker({
+    position: position,
+    map: map,
+    title: waypoint.address,
+    animation: google.maps.Animation.DROP,
+    icon: svgMarker,
+    label: {
+      text: String(waypoints.length),
+      color: '#FFFFFF',
+      fontSize: '11px',
+      fontWeight: 'bold'
+    }
+  });
+  
+  // Add the marker to our array
+  markers.push(marker);
+  
+  // Create marker info window content
+  const infoWindowContent = `
+    <div class="marker-details">
+      <div class="marker-header">${waypoint.name}</div>
+      <div class="marker-content">
+        <strong>${waypoint.address}</strong><br>
+        <div style="margin: 5px 0">
+          <small>Lat: ${position.lat.toFixed(6)}</small><br>
+          <small>Lng: ${position.lng.toFixed(6)}</small>
+        </div>
+      </div>
+      <div class="marker-footer">
+        <button class="marker-action" onclick="openStreetView(${position.lat}, ${position.lng})">
+          <i class="bi bi-signpost-2"></i> Street View
+        </button>
+      </div>
+    </div>
+  `;
+  
+  // Add an info window
+  const infoWindow = new google.maps.InfoWindow({
+    content: infoWindowContent
+  });
+  
+  infoWindows.push(infoWindow);
+  
+  marker.addListener('click', function() {
+    // Close all other info windows
+    infoWindows.forEach(iw => iw !== infoWindow && iw.close());
+    
+    infoWindow.open(map, marker);
+  });
+  
+  // Initially open the info window
+  infoWindow.open(map, marker);
+  
+  // Draw lines between waypoints if we have multiple
+  if (waypoints.length > 1) {
+    drawPathOnMap();
+  }
+  
+  // Automatically open Street View for this waypoint
+  openStreetView(position.lat, position.lng);
+}
+
+// Draw path between waypoints
+function drawPathOnMap() {
+  // Remove any existing path
+  if (window.pathLine) {
+    window.pathLine.setMap(null);
+  }
+  
+  // Create an array of LatLng points
+  const pathCoordinates = waypoints.map(wp => ({
+    lat: parseFloat(wp.lat),
+    lng: parseFloat(wp.lng)
+  }));
+  
+  // Create the path
+  window.pathLine = new google.maps.Polyline({
+    path: pathCoordinates,
+    geodesic: true,
+    strokeColor: '#00a0f5',
+    strokeOpacity: 0.8,
+    strokeWeight: 3
+  });
+  
+  window.pathLine.setMap(map);
+}
+
+// Clear all waypoints
+function clearAllWaypoints() {
+  // Ask for confirmation
+  if (!confirm('Are you sure you want to clear all waypoints?')) {
+    return;
+  }
+  
+  // Remove all markers from the map
+  markers.forEach(marker => {
+    marker.setMap(null);
+  });
+  
+  // Clear the arrays
+  markers = [];
+  waypoints = [];
+  
+  // Remove the path
+  if (window.pathLine) {
+    window.pathLine.setMap(null);
+  }
+  
+  // Update the UI
+  updateWaypointsList();
+  
+  // Hide the result section if we have no waypoints
+  if (waypoints.length === 0) {
+    document.getElementById('resultSection').style.display = 'none';
+  }
+}
+
+// Remove a specific waypoint
+function removeWaypoint(index) {
+  // Remove the marker from the map
+  markers[index].setMap(null);
+  
+  // Remove from arrays
+  waypoints.splice(index, 1);
+  markers.splice(index, 1);
+  
+  // Update markers' labels
+  markers.forEach((marker, i) => {
+    if (marker.getLabel()) {
+      marker.setLabel({
+        text: String(i + 1),
+        color: '#FFFFFF',
+        fontSize: '11px',
+        fontWeight: 'bold'
+      });
+    }
+  });
+  
+  // Update the path
+  if (waypoints.length > 1) {
+    drawPathOnMap();
+  } else if (window.pathLine) {
+    window.pathLine.setMap(null);
+  }
+  
+  // Update the UI
+  updateWaypointsList();
+  
+  // Hide the result section if we have no waypoints
+  if (waypoints.length === 0) {
+    document.getElementById('resultSection').style.display = 'none';
+  }
+}
+
+// Export waypoints in multiple formats
+function exportWaypoints() {
+  if (waypoints.length === 0) {
+    showError('No waypoints to export');
+    return;
+  }
+  
+  // Create modal for export options if not exists
+  if (!document.getElementById('exportModal')) {
+    const modalHTML = `
+      <div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="exportModalLabel">Export Waypoints</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <p>Choose an export format:</p>
+              <div class="d-grid gap-2">
+                <button class="btn btn-outline-primary" id="exportKML">KML Format (Google Earth)</button>
+                <button class="btn btn-outline-primary" id="exportGPX">GPX Format (GPS Exchange)</button>
+                <button class="btn btn-outline-primary" id="exportCSV">CSV Format (Spreadsheet)</button>
+                <button class="btn btn-outline-primary" id="exportJSON">JSON Format (Raw Data)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    const modalContainer = document.createElement('div');
+    modalContainer.innerHTML = modalHTML;
+    document.body.appendChild(modalContainer);
+    
+    // Add event listeners to export buttons
+    document.getElementById('exportKML').addEventListener('click', () => {
+      downloadWaypoints('kml');
+      bootstrap.Modal.getInstance(document.getElementById('exportModal')).hide();
+    });
+    
+    document.getElementById('exportGPX').addEventListener('click', () => {
+      downloadWaypoints('gpx');
+      bootstrap.Modal.getInstance(document.getElementById('exportModal')).hide();
+    });
+    
+    document.getElementById('exportCSV').addEventListener('click', () => {
+      downloadWaypoints('csv');
+      bootstrap.Modal.getInstance(document.getElementById('exportModal')).hide();
+    });
+    
+    document.getElementById('exportJSON').addEventListener('click', () => {
+      downloadWaypoints('json');
+      bootstrap.Modal.getInstance(document.getElementById('exportModal')).hide();
+    });
+  }
+  
+  // Show the modal
+  const modal = new bootstrap.Modal(document.getElementById('exportModal'));
+  modal.show();
+}
+
+// Download waypoints in the specified format
+function downloadWaypoints(format) {
+  let content = '';
+  let mimeType = '';
+  let extension = '';
+  
+  switch (format) {
+    case 'kml':
+      // Create KML content with workaround for tag names
+      const nameTag = 'name'; // Use variables instead of direct tags
+      content = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <${nameTag}>Skydio Waypoints</${nameTag}>
+    <description>Waypoints exported from Skydio Waypoint Manager</description>
+    <Style id="waypointStyle">
+      <IconStyle>
+        <Icon>
+          <href>http://maps.google.com/mapfiles/kml/paddle/blu-circle.png</href>
+        </Icon>
+      </IconStyle>
+    </Style>
+${waypoints.map((wp, index) => `    <Placemark>
+      <${nameTag}>Waypoint ${index + 1}</${nameTag}>
+      <description>${wp.address}</description>
+      <styleUrl>#waypointStyle</styleUrl>
+      <Point>
+        <coordinates>${wp.lng},${wp.lat},${wp.altitude || 50}</coordinates>
+      </Point>
+    </Placemark>`).join('\n')}
+    <Placemark>
+      <${nameTag}>Flight Path</${nameTag}>
+      <LineString>
+        <altitudeMode>relativeToGround</altitudeMode>
+        <coordinates>
+${waypoints.map(wp => `          ${wp.lng},${wp.lat},${wp.altitude || 50}`).join('\n')}
+        </coordinates>
+      </LineString>
+    </Placemark>
+  </Document>
+</kml>`;
+      mimeType = 'application/vnd.google-earth.kml+xml';
+      extension = 'kml';
+      break;
+      
+    case 'gpx':
+      // Create GPX content with workaround for tag names
+      const nameTagGpx = 'name'; // Use variables instead of direct tags
+      content = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx xmlns="http://www.topografix.com/GPX/1/1" version="1.1" creator="Skydio Waypoint Manager">
+  <metadata>
+    <${nameTagGpx}>Skydio Waypoints</${nameTagGpx}>
+    <desc>Waypoints exported from Skydio Waypoint Manager</desc>
+  </metadata>
+  <rte>
+    <${nameTagGpx}>Skydio Flight Route</${nameTagGpx}>
+${waypoints.map((wp, index) => `    <rtept lat="${wp.lat}" lon="${wp.lng}">
+      <ele>${wp.altitude || 50}</ele>
+      <${nameTagGpx}>Waypoint ${index + 1}</${nameTagGpx}>
+      <desc>${wp.address}</desc>
+    </rtept>`).join('\n')}
+  </rte>
+</gpx>`;
+      mimeType = 'application/gpx+xml';
+      extension = 'gpx';
+      break;
+      
+    case 'csv':
+      // Create CSV content
+      content = 'Name,Latitude,Longitude,Altitude,Address\n';
+      content += waypoints.map((wp, index) => 
+        `"Waypoint ${index + 1}",${wp.lat},${wp.lng},${wp.altitude || 50},"${wp.address}"`
+      ).join('\n');
+      mimeType = 'text/csv';
+      extension = 'csv';
+      break;
+      
+    case 'json':
+      // Create JSON content
+      content = JSON.stringify({
+        name: 'Skydio Waypoints',
+        description: 'Waypoints exported from Skydio Waypoint Manager',
+        waypoints: waypoints.map((wp, index) => ({
+          id: index + 1,
+          name: `Waypoint ${index + 1}`,
+          lat: wp.lat,
+          lng: wp.lng,
+          altitude: wp.altitude || 50,
+          address: wp.address
+        })),
+        created: new Date().toISOString()
+      }, null, 2);
+      mimeType = 'application/json';
+      extension = 'json';
+      break;
+  }
+  
+  // Create file and trigger download
+  const blob = new Blob([content], {type: mimeType});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `skydio_waypoints.${extension}`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// Show error message
+function showError(message) {
+  const errorSection = document.getElementById('errorSection');
+  const errorMessage = document.getElementById('errorMessage');
+  
+  errorMessage.textContent = message;
+  errorSection.style.display = 'block';
+}
+
+// Hide error message
+function hideError() {
+  document.getElementById('errorSection').style.display = 'none';
+} 
